@@ -22,6 +22,9 @@ ch: src/CH.cc $(HDRS)
 gtfs2graph: src/gtfs2graph.cc $(HDRS)
 	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
 
+teg: src/teg.cc $(HDRS)
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
+
 test: test.o
 
 %.o: src/%.cc $(HDRS)
