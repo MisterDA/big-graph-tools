@@ -7,23 +7,28 @@ CLUST_DIR:=graph/cpp
 
 HDRS:=$(wildcard src/*.hh)
 CTRS:=$(wildcard src/*.cc)
-LIBS:=-lz
+LDLIBS:=-lz
+LDFLAGS:=-rdynamic -lpthread
+CFLAGS_RELEASE:=-O3 -s -flto
+CFLAGS_DEBUG:=-g -Og -Wall -Wextra \
+              -Wno-sign-compare -Wno-unused-parameter -Wno-unused-function
+CFLAGS:=-std=c++11 -pipe -march=native $(CFLAGS_RELEASE)
 
 main: raptor.o
 
 hltrans: src/HL_trans.cc $(HDRS)
-	g++ -std=c++11 -O3 -g -rdynamic -pthread -o $@ $<
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
 
 ch: src/CH.cc $(HDRS)
-	g++ -std=c++11 -O3 -g -rdynamic -pthread -o $@ $<
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
 
 gtfs2graph: src/gtfs2graph.cc $(HDRS)
-	g++ -std=c++11 -O3 -g -rdynamic -pthread -o $@ $<
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
 
 test: test.o
 
 %.o: src/%.cc $(HDRS)
-	g++ -std=c++11 -O3 -pthread $(LIBS) -o $@ $<
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
 
 headers:
 	@echo $(HDRS)
@@ -33,7 +38,7 @@ unit: unit.og
 	./unit.og
 
 %.og: src/%.cc $(HDRS)
-	g++ -std=c++11 -g -rdynamic -pthread $(LIBS) -o $@ $<
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
 
 clean:
 	rm -f test *~ src/*~
@@ -435,4 +440,3 @@ endef
 export MAC
 mac:
 	echo "$$MAC"
-
