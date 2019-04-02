@@ -83,7 +83,6 @@ time_expanded_graph(const std::vector<std::vector<std::string>>& stop_times,
             }
         } else {
             old_trip_id = trip_id;
-            std::cout << "here" << std::endl;
             old_transfer = -1;
         }
         old_dep = dep_vertex;
@@ -171,10 +170,10 @@ stats(const std::vector<std::vector<std::string>> stop_times)
 }
 
 static void
-graph_to_dot(const mgraph<int, int>& graph)
+graph_to_dot(const mgraph<int, int>& graph, char *path)
 {
     std::ofstream dot;
-    dot.open("graph.dot");
+    dot.open(path);
     dot << "digraph g {" << std::endl;
     dot << "  rankdir=\"LR\";" << std::endl;
     for (const auto& u : graph) {
@@ -193,30 +192,56 @@ graph_to_dot(const mgraph<int, int>& graph)
     dot.close();
 }
 
+static void
+graph_output(const mgraph<int, int>& graph, char *path)
+{
+    std::ofstream gr;
+    gr.open(path);
+    for (auto u : graph) {
+        for (auto e : graph[u]) {
+            gr << u << " " << e.dst << " " << e.wgt << std::endl;
+        }
+    }
+    gr.close();
+}
+
+
+static void
+usage_exit(char *argv[])
+{
+    std::cerr << "Usage: " << argv[0]
+              << " [-m] [-d graph.dot] [-t <transfers>] [-o graph.gr] "
+        "<stop_times>" << std::endl;
+    exit(EXIT_FAILURE);
+}
+
 int
 main(int argc, char *argv[])
 {
     int opt;
     bool transfer_metric = false;
-    char *transfers_file = nullptr;
-    while ((opt = getopt(argc, argv, "mt:")) != -1) {
+    char *transfers_file = nullptr, *output = nullptr, *graphviz = nullptr;
+    while ((opt = getopt(argc, argv, "d:mo:t:")) != -1) {
         switch (opt) {
+        case 'd':
+            graphviz = optarg;
+            break;
         case 'm':
             transfer_metric = true;
+            break;
+        case 'o':
+            output = optarg;
             break;
         case 't':
             transfers_file = optarg;
             break;
         default:
-            std::cerr << "Usage: " << argv[0] << " [-m] [-t <transfers>] <stop_times>" << std::endl;
-            return -1;
+            usage_exit(argv);
         }
     }
 
-    if (optind != argc - 1) {
-        std::cerr << "Usage: " << argv[0] << " [-m] [-t <transfers>] <stop_times>" << std::endl;
-        return 1;
-    }
+    if (optind != argc - 1)
+        usage_exit(argv);
 
     mgraph<int, int> *graph;
 
@@ -232,7 +257,14 @@ main(int argc, char *argv[])
         graph = time_expanded_graph(stop_times, &transfers, transfer_metric);
     }
 
-    graph_to_dot(*graph);
+    if (graphviz != nullptr) {
+        std::cout << "Graphviz…" << std::endl;
+        graph_to_dot(*graph, graphviz);
+    }
+    if (output != nullptr) {
+        std::cout << "Output…" << std::endl;
+        graph_output(*graph, output);
+    }
 
     delete graph;
     return 0;
