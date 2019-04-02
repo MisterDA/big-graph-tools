@@ -1,4 +1,4 @@
-RSYNC:=rsync -v -e ssh --inplace -r --relative --exclude '*~' --exclude '\#*' 
+RSYNC:=rsync -v -e ssh --inplace -r --relative --exclude '*~' --exclude '\#*'
 CLUST:=rioc.inria.fr
 CLUST_DIR:=graph/cpp
 
@@ -7,23 +7,25 @@ CLUST_DIR:=graph/cpp
 
 HDRS:=$(wildcard src/*.hh)
 CTRS:=$(wildcard src/*.cc)
-LIBS:=-lz
+LDLIBS:=-lz
+LDFLAGS:=-rdynamic -lpthread
+CFLAGS:=-std=c++11 -O3 -g -pthread
 
 main: raptor.o
 
 hltrans: src/HL_trans.cc $(HDRS)
-	g++ -std=c++11 -O3 -g -rdynamic -pthread -o $@ $<
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
 
 ch: src/CH.cc $(HDRS)
-	g++ -std=c++11 -O3 -g -rdynamic -pthread -o $@ $<
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
 
 gtfs2graph: src/gtfs2graph.cc $(HDRS)
-	g++ -std=c++11 -O3 -g -rdynamic -pthread -o $@ $<
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
 
 test: test.o
 
 %.o: src/%.cc $(HDRS)
-	g++ -std=c++11 -O3 -pthread $(LIBS) -o $@ $<
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(LDLIBS) -o $@ $<
 
 headers:
 	@echo $(HDRS)
@@ -33,7 +35,7 @@ unit: unit.og
 	./unit.og
 
 %.og: src/%.cc $(HDRS)
-	g++ -std=c++11 -g -rdynamic -pthread $(LIBS) -o $@ $<
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(LDLIBS) -o $@ $<
 
 clean:
 	rm -f test *~ src/*~
@@ -145,7 +147,7 @@ alleatpar:
 		make $${dir}/$*; \
 	done
 
-%.raptor: hostinfo raptor.o 
+%.raptor: hostinfo raptor.o
 	make $*
 
 .PHONY: hostinfo
@@ -261,17 +263,17 @@ split: table.force
 %-rank.csv: %-unif.csv
 	$(eval DIR:=`dirname $<`)
 	$(eval QRY:=`basename $<`)
-	./raptor.o $(DIR) -exit -query-file=$(QRY) -nq=100 -rank -all-ranks > $@ 
+	./raptor.o $(DIR) -exit -query-file=$(QRY) -nq=100 -rank -all-ranks > $@
 
 %-rank-long.csv: %-unif.csv
 	$(eval DIR:=`dirname $<`)
 	$(eval QRY:=`basename $<`)
-	./raptor.o $(DIR) -exit -query-file=$(QRY) -nq=1000 -rank -all-ranks > $@ 
+	./raptor.o $(DIR) -exit -query-file=$(QRY) -nq=1000 -rank -all-ranks > $@
 
 %-unif.csv: #%.csv
 	$(eval DIR:=`dirname $<`)
 	$(eval QRY:=`basename $<`)
-	./raptor.o $(DIR) -exit -query-file=$(QRY) -nq=1000 -rerank > $@ 
+	./raptor.o $(DIR) -exit -query-file=$(QRY) -nq=1000 -rerank > $@
 
 
 %/queries-loc10pct.csv: %/arrival_times.csv
@@ -434,5 +436,4 @@ define MAC
 endef
 export MAC
 mac:
-	echo "$$MAC" 
-
+	echo "$$MAC"
