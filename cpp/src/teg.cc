@@ -205,6 +205,17 @@ graph_output(const mgraph<int, int>& graph, char *path)
     gr.close();
 }
 
+static void
+serialize_vertices(const std::string& path)
+{
+    std::ofstream f;
+    f.open(path);
+    for (auto it = vertices.begin(); it != vertices.end(); it++) {
+        f << it->first << " " << it->second.first << it->second.second << std::endl;
+    }
+    f.close();
+}
+
 
 static void
 usage_exit(char *argv[])
@@ -213,80 +224,6 @@ usage_exit(char *argv[])
               << " [-m] [-d graph.dot] [-t <transfers>] [-o graph.gr] "
         "<stop_times>" << std::endl;
     exit(EXIT_FAILURE);
-}
-
-struct label_entry {
-    int next_hop;
-    int hub;
-    int dist;
-};
-
-static bool
-label_intersect(std::vector<struct label_entry>& hubs_a,
-                std::vector<struct label_entry>& hubs_b)
-{
-    for (size_t i = 0; i < hubs_a.size(); ++i)
-        for (size_t j = i + 1; j < hubs_b.size(); ++j)
-            if (hubs_a[i].hub == hubs_b[j].hub)
-                return true;
-    return false;
-}
-
-static void
-profile_query(// stop_id -> event -> (vertex_id, trips)
-              std::map<int, std::map<int, std::pair<int, std::vector<int>>>>& stop_event,
-              std::map<int, std::vector<struct label_entry>>& inhubs,
-              std::map<int, std::vector<struct label_entry>>& outhubs,
-              int s, int t)
-{
-    auto event_s = stop_event[s].begin();
-    auto event_t = stop_event[t].begin();
-    bool prev_intersect;
-    std::vector<std::pair<int, int>> journeys;
-begin:
-    prev_intersect = false;
-    for (; event_t != stop_event[t].end(); event_t++) {
-        int vs = event_s->second.first,
-            vt = event_t->second.first;
-        if (label_intersect(inhubs[vs], outhubs[vt])) {
-            if (!prev_intersect)
-                break;
-            prev_intersect = true;
-        } else {
-            prev_intersect = false;
-        }
-    }
-
-    for (event_s++; event_s != stop_event[s].end(); event_s++) {
-        int vs = event_s->second.first,
-            vt = event_t->second.first;
-        if (!label_intersect(inhubs[vs], outhubs[vt])) {
-            journeys.push_back(std::make_pair<>(std::prev(event_s, 1)->first,
-                                                event_t->first));
-            goto begin;
-        }
-    }
-}
-
-static void
-parse_hubs(const std::string& file,
-           std::map<int, std::vector<struct label_entry>>& outhubs,
-           std::map<int, std::vector<struct label_entry>>& inhubs)
-{
-    std::ifstream f(file);
-    int vertex;
-    struct label_entry e;
-    char type;
-    while (f >> type >> vertex >> e.next_hop >> e.hub >> e.dist) {
-        if (type == 'i') {
-            inhubs[vertex].push_back(e);
-        } else if (type == 'o') {
-            outhubs[vertex].push_back(e);
-        } else if (type == 'c') {
-            // do nothing
-        }
-    }
-    f.close();
 }
 
 int
