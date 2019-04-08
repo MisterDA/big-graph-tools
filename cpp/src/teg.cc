@@ -28,10 +28,10 @@ static std::map<int, std::pair<int, int>> vertices;
 static mgraph<int, int> *
 time_expanded_graph(const std::vector<std::vector<std::string>>& stop_times,
                     const std::vector<std::vector<std::string>>* transfers,
-                    const bool transfer_metric)
+                    const bool transfer_metric,
+                    // stop_id -> event -> (vertex_id, trips)
+                    std::map<int, std::map<int, std::pair<int, std::vector<int>>>>& stop_event)
 {
-    // stop_id -> event -> (vertex_id, trips)
-    std::map<int, std::map<int, std::pair<int, std::vector<int>>>> stop_event;
     std::vector<unit::graph::edge> edges;
     int index = 1;
     int old_trip_id = -1; int old_dep = -1, old_dep_time, old_transfer = -1;
@@ -215,6 +215,80 @@ usage_exit(char *argv[])
     exit(EXIT_FAILURE);
 }
 
+struct label_entry {
+    int next_hop;
+    int hub;
+    int dist;
+};
+
+static bool
+label_intersect(std::vector<struct label_entry>& hubs_a,
+                std::vector<struct label_entry>& hubs_b)
+{
+    for (size_t i = 0; i < hubs_a.size(); ++i)
+        for (size_t j = i + 1; j < hubs_b.size(); ++j)
+            if (hubs_a[i].hub == hubs_b[j].hub)
+                return true;
+    return false;
+}
+
+static void
+profile_query(// stop_id -> event -> (vertex_id, trips)
+              std::map<int, std::map<int, std::pair<int, std::vector<int>>>>& stop_event,
+              std::map<int, std::vector<struct label_entry>>& inhubs,
+              std::map<int, std::vector<struct label_entry>>& outhubs,
+              int s, int t)
+{
+    auto event_s = stop_event[s].begin();
+    auto event_t = stop_event[t].begin();
+    bool prev_intersect;
+    std::vector<std::pair<int, int>> journeys;
+begin:
+    prev_intersect = false;
+    for (; event_t != stop_event[t].end(); event_t++) {
+        int vs = event_s->second.first,
+            vt = event_t->second.first;
+        if (label_intersect(inhubs[vs], outhubs[vt])) {
+            if (!prev_intersect)
+                break;
+            prev_intersect = true;
+        } else {
+            prev_intersect = false;
+        }
+    }
+
+    for (event_s++; event_s != stop_event[s].end(); event_s++) {
+        int vs = event_s->second.first,
+            vt = event_t->second.first;
+        if (!label_intersect(inhubs[vs], outhubs[vt])) {
+            journeys.push_back(std::make_pair<>(std::prev(event_s, 1)->first,
+                                                event_t->first));
+            goto begin;
+        }
+    }
+}
+
+static void
+parse_hubs(const std::string& file,
+           std::map<int, std::vector<struct label_entry>>& outhubs,
+           std::map<int, std::vector<struct label_entry>>& inhubs)
+{
+    std::ifstream f(file);
+    int vertex;
+    struct label_entry e;
+    char type;
+    while (f >> type >> vertex >> e.next_hop >> e.hub >> e.dist) {
+        if (type == 'i') {
+            inhubs[vertex].push_back(e);
+        } else if (type == 'o') {
+            outhubs[vertex].push_back(e);
+        } else if (type == 'c') {
+            // do nothing
+        }
+    }
+    f.close();
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -249,12 +323,14 @@ main(int argc, char *argv[])
         read_csv(std::string(argv[optind]), 5, "trip_id", "arrival_time",
                  "departure_time", "stop_id", "stop_sequence");
     std::vector<std::vector<std::string>> transfers;
+    std::map<int, std::map<int, std::pair<int, std::vector<int>>>> stop_event;
+
     if (transfers_file == nullptr) {
-        graph = time_expanded_graph(stop_times, nullptr, transfer_metric);
+        graph = time_expanded_graph(stop_times, nullptr, transfer_metric, stop_event);
     } else {
         transfers = read_csv(std::string(transfers_file), 3, "from_stop_id", "to_stop_id",
                              "min_transfer_time");
-        graph = time_expanded_graph(stop_times, &transfers, transfer_metric);
+        graph = time_expanded_graph(stop_times, &transfers, transfer_metric, stop_event);
     }
 
     if (graphviz != nullptr) {
