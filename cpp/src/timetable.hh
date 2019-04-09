@@ -1,7 +1,7 @@
 #ifndef TIMETABLE_HH
 #define TIMETABLE_HH
 
-#include <assert.h>
+#include <cassert>
 #include <limits>
 #include <iostream>
 #include <zlib.h>

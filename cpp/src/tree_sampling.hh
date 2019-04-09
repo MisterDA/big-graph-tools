@@ -1,7 +1,7 @@
 #ifndef TREE_SAMPLING_HH
 #define TREE_SAMPLING_HH
 
-#include <assert.h>
+#include <cassert>
 #include <vector>
 #include <queue>          // std::priority_queue
 #include <set>

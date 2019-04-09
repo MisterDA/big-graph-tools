@@ -1,7 +1,7 @@
 #ifndef CONNECTION_SCAN_HH
 #define CONNECTION_SCAN_HH
 
-#include <assert.h>
+#include <cassert>
 #include <vector>
 #include <queue>
 #include <set>

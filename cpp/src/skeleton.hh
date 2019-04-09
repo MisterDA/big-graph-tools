@@ -1,7 +1,7 @@
 #ifndef SKELETON_HH
 #define SKELETON_HH
 
-#include <assert.h>
+#include <cassert>
 #include <vector>
 #include <queue>          // std::priority_queue
 #include <functional>

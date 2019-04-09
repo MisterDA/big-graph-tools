@@ -1,8 +1,8 @@
 #ifndef TRAVERSAL_HH
 #define TRAVERSAL_HH
 
-#include <assert.h>
-#include <stdint.h>
+#include <cassert>
+#include <cstdint>
 #include <climits>
 #include <vector>
 #include <queue>          // std::priority_queue

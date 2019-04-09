@@ -1,7 +1,7 @@
 #ifndef RAPTOR_HH
 #define RAPTOR_HH
 
-#include <assert.h>
+#include <cassert>
 #include <vector>
 #include <queue>
 #include <set>

@@ -1,8 +1,8 @@
 #ifndef PARETO_HH
 #define PARETO_HH
 
-#include <assert.h>
-#include <stdio.h>
+#include <cassert>
+#include <cstdio>
 #include <limits>
 #include <vector>
 #include <utility>

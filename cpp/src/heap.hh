@@ -1,7 +1,7 @@
 #ifndef HEAP_HH
 #define HEAP_HH
 
-#include <assert.h>
+#include <cassert>
 #include <functional>
 #include <vector>
 #include <iostream>

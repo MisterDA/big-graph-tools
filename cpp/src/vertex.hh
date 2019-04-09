@@ -1,7 +1,7 @@
 #ifndef VERTEX_HH
 #define VERTEX_HH
 
-#include <assert.h>
+#include <cassert>
 
 /** An vertex [src,dst] with label [lab] or part of it. */
 

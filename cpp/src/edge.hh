@@ -1,7 +1,7 @@
 #ifndef EDGE_HH
 #define EDGE_HH
 
-#include <assert.h>
+#include <cassert>
 
 namespace edge { // Various edge information.
 
