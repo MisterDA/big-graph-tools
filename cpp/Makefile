@@ -32,7 +32,7 @@ static_graph: src/static_graph.cc $(HDRS)
 test: test.o
 
 %.o: src/%.cc $(HDRS)
-	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(LDLIBS) -o $@ $<
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
 
 headers:
 	@echo $(HDRS)
