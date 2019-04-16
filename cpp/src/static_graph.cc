@@ -2,7 +2,9 @@
 #include <limits>
 #include <iostream>
 #include <fstream>
+extern "C" {
 #include <zlib.h>
+}
 #include <algorithm>
 #include <vector>
 #include <set>
@@ -17,16 +19,70 @@
 #include "file_util.hh"
 #include "mgraph.hh"
 
-// 78756
-// 90900
-// 90900
-// 26136
-// 85
+typedef std::string stop_id_t;
+typedef int route_id_t;
+typedef int trip_id_t;
+typedef int timestamp_t;
 
-struct graphs {
-    mgraph<int, int> *max, *min;
-    mgraph<int, int> *avg;
+typedef int vertex_t;
+
+struct stop_time {
+    trip_id_t trip_id;
+    timestamp_t arrival_time;
+    timestamp_t departure_time;
+    stop_id_t stop_id;
+    int stop_sequence;
 };
+
+static void
+read_routes(std::map<trip_id_t, route_id_t>& routes, const std::string& path)
+{
+    auto file = read_csv(path, 2, "route_id", "trip_id");
+    for (const auto& row : file) {
+        routes[std::stoi(row[1])] = std::stoi(row[0]);
+    }
+}
+
+static void
+read_transfers(std::vector<std::tuple<stop_id_t, stop_id_t, int>>& transfers,
+               const std::string& path)
+{
+    auto file = read_csv(path, 3, "from_stop_id", "to_stop_id",
+                         "min_transfer_time");
+    for (const auto& row : file) {
+        transfers.push_back(std::make_tuple<>(row[0], row[1],
+                                              std::stoi(row[2])));
+    }
+}
+
+static void
+read_stop_times(std::vector<struct stop_time>& stop_times,
+                const std::string& path)
+{
+    auto file = read_csv(path, 5, "trip_id", "arrival_time",
+                         "departure_time", "stop_id", "stop_sequence");
+    for (const auto& row : file) {
+        std::vector<int> values;
+        std::transform(row.begin(), row.end(), std::back_inserter(values),
+                       [](const std::string& str) { return std::stoi(str); });
+        stop_times.push_back({.trip_id = values[0],
+                              .arrival_time = values[1],
+                              .departure_time = values[2],
+                              .stop_id = row[3],
+                              .stop_sequence = values[4]});
+    }
+}
+
+static void
+build_events_table(const std::vector<struct stop_time>& stop_times,
+                   std::map<stop_id_t, std::vector<timestamp_t>>& events)
+{
+    for (const auto& row : stop_times) {
+        auto& stop = events[row.stop_id];
+        stop.push_back(row.arrival_time);
+        stop.push_back(row.departure_time);
+    }
+}
 
 struct graphs
 static_graph(const std::vector<std::vector<std::string>>& stop_times,
@@ -34,8 +90,6 @@ static_graph(const std::vector<std::vector<std::string>>& stop_times,
              int tstart, int tend)
 {
     struct graphs graphs;
-    std::map<std::pair<int, int>, int> min, max;
-    std::map<std::pair<int, int>, std::pair<int, int>> avg;
 
     int max_vertex = -1;
     int old_trip_id = -1, old_dep = -1, old_dep_time = -1;
@@ -51,17 +105,13 @@ static_graph(const std::vector<std::vector<std::string>>& stop_times,
         if (!(tstart <= departure_time && arrival_time <= tend))
             continue;
 
-        max_vertex = std::max<>(max_vertex, stop_id);
-
         if (trip_id == old_trip_id) {
             auto key = std::make_pair<>(old_dep, stop_id);
             if (min.find(key) == min.end())
                 min[key] = arrival_time - old_dep_time;
             else
                 min[key] = std::min<>(min[key], arrival_time - old_dep_time);
-            max[key] = std::max<>(max[key], arrival_time - old_dep_time);
-            avg[key].first += arrival_time - old_dep_time;
-            avg[key].second++;
+
         } else {
             old_trip_id = trip_id;
         }
@@ -122,9 +172,9 @@ graph_output(const mgraph<int, int>& graph, const std::string& path)
 static void
 graphs_output(const struct graphs& graphs, const std::string& path)
 {
-    graph_output(*(graphs.min), path + "_min.gr");
-    graph_output(*(graphs.max), path + "_max.gr");
-    graph_output(*(graphs.avg), path + "_avg.gr");
+    graph_output(*(graphs.min), path + "_min.gr
+                 graph_output(*(graphs.max), path + _max.gr);
+                 graph_output(*(graphs.avg), path + "_avg.gr");");
 }
 
 static void
