@@ -1,130 +1,85 @@
-#include <cassert>
-#include <limits>
-#include <iostream>
-#include <fstream>
-#include <zlib.h>
-#include <algorithm>
-#include <vector>
-#include <set>
-#include <unordered_set>
-#include <cstdarg>
-#include <cmath>
-#include <string>
-#include <unordered_map>
-#include <map>
-#include <tuple>
+#include "timetable.hh"
 
-#include "file_util.hh"
-#include "mgraph.hh"
+// static void
+// min_waiting_time(timetable& ttbl, std::vector<timetable::T>& waiting_times)
+// {
+//     waiting_times.reserve(ttbl.stop_departures.size());
+//     for (size_t i = 0; i < ttbl.stop_departures.size(); ++i) {
+//         assert(ttbl.stop_departures[i].size() == ttbl.stop_arrivals[i].size());
+//         waiting_times[i] = std::numeric_limits<timetable::T>::max();
+//         for (size_t j = 0; j < ttbl.stop_departures[i].size() - 1; ++j) {
+//             auto t = ttbl.stop_arrivals[i][j + 1] - ttbl.stop_departures[i][j];
+//             waiting_times[i] = std::min(waiting_times[i], t);
+//         }
+//     }
+// }
 
-struct label_entry {
-    int next_hop;
-    int hub;
-    int dist;
-};
+typedef int V;
+typedef mgraph<V, int> graph;
 
-typedef std::map<int, std::vector<struct label_entry>> hubset_t;
-
-static bool
-label_intersect(std::vector<struct label_entry>& hubs_a,
-                std::vector<struct label_entry>& hubs_b)
+static graph *
+min_graph(timetable& ttbl, int ma = 30, int mb = 30) // TODO: transfers
 {
-    for (size_t i = 0; i < hubs_a.size(); ++i)
-        for (size_t j = i + 1; j < hubs_b.size(); ++j)
-            if (hubs_a[i].hub == hubs_b[j].hub)
-                return true;
-    return false;
-}
-
-static void
-profile_query(// stop_id -> event -> (vertex_id, trips)
-              std::map<int, std::map<int, std::pair<int, std::vector<int>>>>& stop_event,
-              hubset_t& outhubs, hubset_t& inhubs,
-              int s, int t)
-{
-    auto event_s = stop_event[s].begin();
-    auto event_t = stop_event[t].begin();
-    bool prev_intersect;
-    std::vector<std::pair<int, int>> journeys;
-begin:
-    prev_intersect = false;
-    for (; event_t != stop_event[t].end(); event_t++) {
-        int vs = event_s->second.first,
-            vt = event_t->second.first;
-        if (label_intersect(inhubs[vs], outhubs[vt])) {
-            if (!prev_intersect)
-                break;
-            prev_intersect = true;
-        } else {
-            prev_intersect = false;
-        }
-    }
-
-    for (event_s++; event_s != stop_event[s].end(); event_s++) {
-        int vs = event_s->second.first,
-            vt = event_t->second.first;
-        if (!label_intersect(inhubs[vs], outhubs[vt])) {
-            journeys.push_back(std::make_pair<>(std::prev(event_s, 1)->first,
-                                                event_t->first));
-            goto begin;
-        }
-    }
-}
-
-static void
-parse_hubs(const std::string& file,
-           hubset_t& outhubs,
-           hubset_t& inhubs)
-{
-    std::ifstream f(file);
-    int vertex;
-    struct label_entry e;
-    char type;
-    while (f >> type >> vertex >> e.next_hop >> e.hub >> e.dist) {
-        if (type == 'i') {
-            inhubs[vertex].push_back(e);
-        } else if (type == 'o') {
-            outhubs[vertex].push_back(e);
-        } else if (type == 'c') {
-            // do nothing
-        }
-    }
-    f.close();
-}
-
-static mgraph<int, int> *
-parse_graph(const std::string& file)
-{
-    std::ifstream f(file);
     std::vector<unit::graph::edge> edges;
-    int max_vector = 0;
-    int s, t, w;
+    V max_vertex = 0;
+    std::map<timetable::S, std::pair<V, V>> vertices; // (arrival, departure)
 
-    while (f >> s >> t >> w) {
-        edges.push_back(unit::graph::edge(s, t, w));
-        max_vector = std::max<>(max_vector, std::max<>(s, t));
+    for (size_t r = 0; r < ttbl.trips_of.size(); ++r) {
+        const auto& route = ttbl.trips_of[r];
+        for (size_t t = 0; t < route.size(); ++t) {
+            const auto& trip = route[t];
+            for (size_t s = 0; s < trip.size() - 1; ++s) {
+                const auto& stop = trip[s];
+                auto w = stop.first - stop.second;
+                auto e = trip[s+1].first - stop.second;
+                auto dep_stop_id = ttbl.route_stops[r][s],
+                    arr_stop_id = ttbl.route_stops[r][s + 1];
+
+                auto it = vertices.find(dep_stop_id);
+                if (it == vertices.end()) {
+                    vertices[dep_stop_id] = std::make_pair<>(max_vertex,
+                                                             max_vertex+1);
+                    max_vertex += 2;
+                }
+                it = vertices.find(arr_stop_id);
+                if (it == vertices.end()) {
+                    vertices[arr_stop_id] = std::make_pair<>(max_vertex,
+                                                             max_vertex+1);
+                    max_vertex += 2;
+                }
+
+                edges.push_back(unit::graph::edge(vertices[dep_stop_id].first,
+                                                  vertices[dep_stop_id].second,
+                                                  w));
+                edges.push_back(unit::graph::edge(vertices[dep_stop_id].second,
+                                                  vertices[arr_stop_id].first,
+                                                  e));
+            }
+        }
     }
 
-    auto graph = new mgraph<int, int>(max_vector + 1, edges);
+    std::map<timetable::ST, V> stations_vertices;
+    for (size_t st = 0; st < ttbl.station_stops.size(); ++st) {
+        const auto& station = ttbl.station_stops[st];
+        stations_vertices[st] = max_vertex;
+
+        for (size_t s = 0; s < station.size(); ++s) {
+            const auto& stop = vertices[station[s]];
+            edges.push_back(unit::graph::edge(stop.first, max_vertex, ma));
+            edges.push_back(unit::graph::edge(max_vertex, stop.second, mb));
+        }
+        ++max_vertex;
+    }
+
+    auto graph = new mgraph<V, int>(max_vertex, edges);
     return graph;
 }
 
-static void
-compare(mgraph<int, int>& dynamic,
-        std::pair<hubset_t, hubset_t> hubs,
-        int s, int t)
-{
+int main(int argc, char *argv[]) {
+    timetable ttbl(argv[1], argv[2]);
 
-}
+    // std::vector<timetable::T> waiting_times;
+    // min_waiting_time(ttbl, waiting_times);
 
-int
-main(int argc, char *argv[])
-{
-    auto *dynamic = parse_graph(std::string(argv[1]));
-    std::vector<std::pair<hubset_t, hubset_t>> hubs;
-    hubs.reserve(argc - 2);
-    for (int i = 0; i < argc - 2; ++i) {
-        parse_hubs(argv[i+2], hubs[i].first, hubs[i].second);
-    }
-
+    graph *graph = min_graph(ttbl);
 }
