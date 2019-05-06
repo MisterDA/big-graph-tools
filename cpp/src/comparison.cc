@@ -1,3 +1,4 @@
+#include <iostream>
 #include <fstream>
 
 #include "mgraph.hh"
@@ -5,13 +6,15 @@
 #include "traversal.hh"
 #include "pruned_landmark_labeling.hh"
 
+namespace {
+
 typedef int V;
-typedef int64_t W;
+typedef int W;
 typedef mgraph<V, W> graph_t;
 typedef pruned_landmark_labeling<graph_t> pl_lab;
 typedef mgraph<int, pl_lab::hubinfo> graphL;
 
-static std::tuple<size_t, size_t, size_t>
+std::tuple<size_t, size_t, size_t>
 min_waiting_time(timetable& ttbl, std::vector<size_t>& waiting_times)
 {
     size_t min = std::numeric_limits<size_t>::max(),
@@ -35,7 +38,7 @@ min_waiting_time(timetable& ttbl, std::vector<size_t>& waiting_times)
     return std::make_tuple<>(min, avg / n, max);
 }
 
-static std::pair<size_t, size_t>
+std::pair<size_t, size_t>
 avg_degree(const graph_t& graph)
 {
     size_t in = 0, out = 0, n = 0;
@@ -62,14 +65,14 @@ typedef std::vector<timetable::S> vertices_stops_t;
 typedef std::vector<timetable::ST> vertices_stations_t;
 
 struct min_graph_t {
-    graph_t *graph;
+    graph_t *min_graph;
     stops_vertices_t stops_vertices;
     stations_vertices_t stations_vertices;
     vertices_stops_t vertices_stops;
     vertices_stations_t vertices_stations;
 };
 
-static void
+void
 add_min_edge(std::map<std::pair<V, V>, W>& graph,
              const V& src, const V& dst, const W& wgt)
 {
@@ -82,7 +85,7 @@ add_min_edge(std::map<std::pair<V, V>, W>& graph,
     }
 }
 
-static struct min_graph_t
+struct min_graph_t
 min_graph(timetable& ttbl, int ma = 30, int mb = 30)
 {
     V max_vertex = 0;
@@ -175,7 +178,7 @@ min_graph(timetable& ttbl, int ma = 30, int mb = 30)
             vertices_stops, vertices_stations};
 }
 
-static void
+void
 graphviz(const min_graph_t& graph,
          const std::string& path)
 {
@@ -183,12 +186,12 @@ graphviz(const min_graph_t& graph,
     dot.open(path);
     dot << "digraph g {" << std::endl;
     dot << "  rankdir=\"LR\";" << std::endl;
-    for (const auto& u : *graph.graph) {
+    for (const auto& u : *graph.min_graph) {
         if (u < graph.vertices_stops.size())
             dot << "  " << u << ";" << std::endl;
         else
             dot << "  " << u << "[shape=point];" << std::endl;
-        for (const auto& e : (*graph.graph)[u])
+        for (const auto& e : (*graph.min_graph)[u])
             dot << "  " << u << " -> " << e.dst
                 << " [label=\"" << e.wgt << "\"];" << std::endl;
     }
@@ -196,7 +199,37 @@ graphviz(const min_graph_t& graph,
     dot.close();
 }
 
-static void
+void
+hl_output(pl_lab& hl, std::ostream& f)
+{
+    std::vector<pl_lab::edgeL> edg;
+    edg = hl.in_hub_edges();
+    for (const pl_lab::edgeL &e : edg) {
+        f << "i " << e.wgt.hub << " " << e.wgt.next_hop
+          << " "  << e.dst << " " << e.wgt.dist << std::endl;
+    }
+    edg = hl.out_hub_edges();
+    for (const pl_lab::edgeL &e : edg) {
+        f << "o " << e.src << " " << e.wgt.next_hop
+          << " " << e.wgt.hub << " " << e.wgt.dist << std::endl;
+    }
+}
+
+
+struct label {
+    V hub, next_hop;
+};
+
+typedef std::map<V, std::vector<struct label>> hl_t;
+
+hl_t
+hl_input(std::istream& s)
+{
+    hl_t hl;
+    std::string line;
+}
+
+void
 graph_output(const mgraph<int, int>& graph, const std::string& path)
 {
     std::ofstream gr;
@@ -209,39 +242,128 @@ graph_output(const mgraph<int, int>& graph, const std::string& path)
     gr.close();
 }
 
-
-static void
-usage_exit(void)
+void
+graph_input(mgraph<int, int>& graph, const std::string& path)
 {
-    std::cerr << "Usage: comparison <stop_times.csv> <transfers.csv>" << std::endl;
-    exit(1);
+    std::vector<unit::graph::edge> edges;
+    std::ifstream f(path);
+    std::string line;
+    getline(f, line);           // header
+    while (!f.eof()) {
+        int u, v, wgt;
+        f >> u >> v >> wgt;
+        edges.push_back(unit::graph::edge(u, v, wgt));
+    }
+    graph.set_edges(edges);
 }
 
-static void
-timeprofile(std::vector<std::pair<int, int>>& profile, const min_graph_t& mg,
-            const timetable& ttbl, const pl_lab& hl,
-            const V src, const V dst, const int departure_time)
+struct timeprofile_t {
+    int tdep;
+    int tarr;
+};
+
+void
+timeprofile(std::vector<timeprofile_t>& profile,
+            const min_graph_t& mg,
+            const timetable& ttbl,
+            pl_lab& hl,
+            const timetable::ST src, const timetable::ST dst,
+            const int departure_time = 0)
 {
-    // coming soon
+    // First we find the source and the destination in the static graph
+    V vsrc, vdst;
+    auto it = mg.stations_vertices.find(src);
+    if (it == mg.stations_vertices.end()) {
+        std::cerr << "Could not find source station vertex " << src << "." << std::endl;
+        exit(1);
+    }
+    vsrc = it->second;
+    it = mg.stations_vertices.find(dst);
+    if (it == mg.stations_vertices.end()) {
+        std::cerr << "Could not find destination station vertex " << src << "." << std::endl;
+        exit(1);
+    }
+    vdst = it->second;
+
+    // Then we build the path with the hub labeling
+    // There must be a better way to do this
+    std::vector<pl_lab::edgeL> in = hl.in_hub_edges();
+    std::vector<pl_lab::edgeL> out = hl.in_hub_edges();
+
 }
 
+void usage_exit (char **argv) {
+    auto paragraph = [](std::string s, int width=80) -> std::string {
+        std::string acc;
+        while (s.size() > 0) {
+            int pos = s.size();
+            if (pos > width) pos = s.rfind(' ', width);
+            std::string line = s.substr(0, pos);
+            acc += line + "\n";
+            s = s.substr(pos);
+        }
+        return acc;
+    };
+
+    std::cerr <<"Usage: "<< argv[0] <<" <command> [params]\n"
+              << paragraph (
+        "Compares a dynamic graph and its static minimum projection.")
+              << paragraph (
+        "With command 'min-hubs-next-hop <stop_times.csv> <transfers.csv>', "
+        "it computes a static minimum graph and outputs a hub-labeling on the "
+        "graph, with the next-hop." )
+              << paragraph (
+        "With command 'comparison <stop_times.csv> <transfers.csv> "
+        "<min_graph.hl> <queries.csv>', it compaires the minimum static graph "
+        "with the dynamic graph." );
+        exit(1);
+}
+
+}
 int main(int argc, char *argv[]) {
-    timetable ttbl(argv[1], argv[2]);
+    logging main_log("--");
+    double t = main_log.lap();
+
+    std::string cmd(argc >= 2 ? argv[1] : "");
+    if (argc < 3 || (cmd != "min-hubs-next-hop"
+                     && cmd != "comparison")) {
+        usage_exit(argv);
+    }
+
+    std::string stop_times(argv[2]);
+    std::string transfers(argv[3]);
+
+    main_log.cerr(t) << "Building timetable…" << std::endl;
+    timetable ttbl(stop_times, transfers);
+    t = main_log.lap();
+
+    main_log.cerr(t) << "Building min graph…" << std::endl;
     min_graph_t mg = min_graph(ttbl);
 
-    std::vector<bool> is_sel(mg.graph->n(), true);
-    std::vector<pl_lab::edgeL> edg;
-    pl_lab hl(*mg.graph);
-    edg = hl.in_hub_edges(is_sel, is_sel);
-    auto queries =
-        read_csv(std::string(argv[3]), 6, "source","destination",
-                 "departure_time","log2_of_station_rank","station_rank","walk_time");
-    for (const auto& query : queries) {
-        V src = std::stoi(query[0]), dst = std::stoi(query[1]);
-        int departure_time = std::stoi(query[2]);
-        auto src_station = mg.stations_vertices[src],
-            dst_station = mg.stations_vertices[dst];
+    t = main_log.lap();
+    if (cmd == "min-hubs-next-hop") {
+        main_log.cerr(t) << "Building hub labelling on min graph…" << std::endl;
+        std::ofstream hlf;
+        pl_lab hl(*mg.min_graph);
+        hlf.open("min_graph.hl");
+        hl_output(hl, hlf);
+        hlf.close();
+    } else if (cmd == "comparison") {
+        auto queries =
+            read_csv(std::string(argv[3]), 6, "source","destination",
+                     "departure_time","log2_of_station_rank","station_rank","walk_time");
+        for (const auto& query : queries) {
+            V src = std::stoi(query[0]), dst = std::stoi(query[1]);
+            int departure_time = std::stoi(query[2]);
+            auto src_station = mg.stations_vertices[src],
+                dst_station = mg.stations_vertices[dst];
+        }
+
     }
+
+    t = main_log.lap();
+    main_log.cerr(t) << "Done!" << std::endl;
+
 
 
         // graphviz(mg, "test.gv");
@@ -262,7 +384,7 @@ int main(int argc, char *argv[]) {
 
     // size_t in_degree, out_degree;
     // std::tie(in_degree, out_degree) = avg_degree(*mg.graph);
-    // std::cout << "Average degree of minimum static graph: "
+    // std::cout << "Average degree of minimum graph: "
     //           << in_degree << ", " << out_degree << std::endl;
 
 }
