@@ -246,69 +246,55 @@ namespace {
         }
     }
 
-    std::list<V>
-    buildpath_rec(hl_t& outhubs, hl_t& inhubs, V src, V dst)
+    std::pair<label *, label *>
+    reachability(hl_t &outhubs, hl_t &inhubs, const V& src, const V& dst)
     {
-        // std::cout << "Call: " << src << " " << dst << std::endl;
-        if (src == dst) {
-            return std::list<V>(1, src);
-        }
-
         // first find the common hub with least distance
         // this is O(n^2), is linear sweep possible?
         label *outlbl = nullptr, *inlbl = nullptr;
         int length = std::numeric_limits<int>::max();
         for (auto& outlabel : outhubs[src]) {
             for (auto& inlabel : inhubs[dst]) {
-                if (outlabel.hub == inlabel.hub) {
-                    // std::cout << "Hub " << outlabel.hub << " found for " << src << " and " << dst << "." << std::endl;
-                    if (outlabel.length + inlabel.length < length) {
-                        length = outlabel.length + inlabel.length;
-                        inlbl = &inlabel;
-                        outlbl = &outlabel;
-                    }
+                if (outlabel.hub == inlabel.hub
+                    && outlabel.length + inlabel.length < length) {
+                    length = outlabel.length + inlabel.length;
+                    inlbl = &inlabel;
+                    outlbl = &outlabel;
                 }
             }
         }
 
         if (!outlbl || !inlbl) {
-            std::cerr << "Did mot find common hub for " << src << " and " << dst << "." << std::endl;
+            std::cerr << "Did not find common hub for " << src << " and " << dst
+                      << "." << std::endl;
             exit(1);
         }
-        // std::cout << "Hub " << outlbl->hub << " selected for " << src << " and " << dst << "." << std::endl;
 
+        return std::make_pair<>(outlbl, inlbl);
+    }
 
-        std::list<V> left, right;
-        if (outlbl->next_hop == outlbl->hub && inlbl->hub == inlbl->next_hop) {
-            left.push_front(outlbl->hub);
-            goto append;
-        }
+    std::list<V>
+    buildpath_rec(hl_t &outhubs, hl_t &inhubs, const V &src, const V &dst)
+    {
+        label *outlbl, *inlbl;
+        std::tie(outlbl, inlbl) = reachability(outhubs, inhubs, src, dst);
+        V &hub = outlbl->hub;
 
-        if (outlbl->next_hop == outlbl->hub) {
-            left.push_front(outlbl->next_hop);
-            // std::cout << "a: pushing " << outlbl->next_hop << std::endl;
-        } else {
-            left = buildpath_rec(outhubs, inhubs, outlbl->next_hop, outlbl->hub);
-        }
-        if (inlbl->hub == inlbl->next_hop) {
-            right.push_front(inlbl->next_hop);
-            // std::cout << "b: pushing " << inlbl->next_hop << std::endl;
-        } else {
-            right = buildpath_rec(outhubs, inhubs, inlbl->hub, inlbl->next_hop);
-        }
-
-    append:
         std::list<V> path;
+        if (outlbl->next_hop != hub)
+            path.splice(path.end(),
+                        buildpath_rec(outhubs, inhubs, outlbl->next_hop, hub));
+        if (inlbl->hub != inlbl->next_hop)
+            path.splice(path.end(),
+                        buildpath_rec(outhubs, inhubs, hub, inlbl->next_hop));
+
         path.push_front(src);
-        path.splice(path.end(), left);
-        path.splice(path.end(), right);
         path.push_back(dst);
         return path;
     }
 
     std::list<V>
-    buildpath(hl_t& outhubs, hl_t& inhubs, V src, V dst)
-    {
+    buildpath(hl_t &outhubs, hl_t &inhubs, const V &src, const V &dst) {
         auto path = buildpath_rec(outhubs, inhubs, src, dst);
         path.unique();
         return path;
@@ -347,6 +333,8 @@ namespace {
         int tarr;
     };
 
+
+    // We assume that there is only one route between two stops.
     void
     timeprofile(std::vector<timeprofile_t>& profile,
                 const min_graph_t& mg,
@@ -359,13 +347,15 @@ namespace {
         V vsrc, vdst;
         auto it = mg.stations_vertices.find(src);
         if (it == mg.stations_vertices.end()) {
-            std::cerr << "Could not find source station vertex " << src << "." << std::endl;
+            std::cerr << "Could not find source station vertex " << src
+                      << "." << std::endl;
             exit(1);
         }
         vsrc = it->second;
         it = mg.stations_vertices.find(dst);
         if (it == mg.stations_vertices.end()) {
-            std::cerr << "Could not find destination station vertex " << src << "." << std::endl;
+            std::cerr << "Could not find destination station vertex " << src
+                      << "." << std::endl;
             exit(1);
         }
         vdst = it->second;
