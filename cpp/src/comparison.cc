@@ -15,6 +15,120 @@ namespace {
     typedef pruned_landmark_labeling<graph_t> pl_lab;
     typedef mgraph<int, pl_lab::hubinfo> graphL;
 
+    typedef std::map<timetable::S, std::pair<V, V>> stops_vertices_t;  // (arrival, departure)
+    typedef std::map<timetable::ST, V> stations_vertices_t;
+    typedef std::vector<timetable::S> vertices_stops_t;
+    typedef std::vector<timetable::ST> vertices_stations_t;
+
+    struct min_graph_t {
+        graph_t *min_graph;
+        stops_vertices_t stops_vertices;
+        stations_vertices_t stations_vertices;
+        vertices_stops_t vertices_stops;
+        vertices_stations_t vertices_stations;
+    };
+
+    struct label {
+        V hub, next_hop, length;
+    };
+
+    typedef std::map<V, std::vector<struct label>> hl_t;
+
+    struct timeprofile_t {
+        int tdep;
+        int tarr;
+    };
+
+    void
+    graph_output(const mgraph<int, int>& graph, const std::string& path)
+    {
+        std::ofstream gr;
+        gr.open(path);
+        for (auto u : graph) {
+            for (auto e : graph[u]) {
+                gr << u << " " << e.dst << " " << e.wgt << std::endl;
+            }
+        }
+        gr.close();
+    }
+
+    void
+    graph_input(mgraph<int, int>& graph, const std::string& path)
+    {
+        std::vector<unit::graph::edge> edges;
+        std::ifstream f(path);
+        std::string line;
+        getline(f, line);           // header
+        while (!f.eof()) {
+            int u, v, wgt;
+            f >> u >> v >> wgt;
+            edges.push_back(unit::graph::edge(u, v, wgt));
+        }
+        graph.set_edges(edges);
+    }
+
+
+    void
+    graphviz(const min_graph_t& graph,
+             const std::string& path)
+    {
+        std::ofstream dot;
+        dot.open(path);
+        dot << "digraph g {" << std::endl;
+        dot << "  rankdir=\"LR\";" << std::endl;
+        for (const auto& u : *graph.min_graph) {
+            if (u < graph.vertices_stops.size())
+                dot << "  " << u << ";" << std::endl;
+            else
+                dot << "  " << u << "[shape=point];" << std::endl;
+            for (const auto& e : (*graph.min_graph)[u])
+                dot << "  " << u << " -> " << e.dst
+                    << " [label=\"" << e.wgt << "\"];" << std::endl;
+        }
+        dot << "}" << std::endl;
+        dot.close();
+    }
+
+    void
+    hl_output(pl_lab& hl, std::ostream& f)
+    {
+        std::vector<pl_lab::edgeL> edg;
+        edg = hl.in_hub_edges();
+        for (const pl_lab::edgeL &e : edg) {
+            f << "i " << e.wgt.hub << " " << e.wgt.next_hop
+              << " "  << e.dst << " " << e.wgt.dist << std::endl;
+        }
+        edg = hl.out_hub_edges();
+        for (const pl_lab::edgeL &e : edg) {
+            f << "o " << e.src << " " << e.wgt.next_hop
+              << " " << e.wgt.hub << " " << e.wgt.dist << std::endl;
+        }
+    }
+
+    void
+    hl_input(std::istream& s, hl_t& outhubs, hl_t& inhubs)
+    {
+        char t;
+        V vertex, next_hop, hub;
+        int length;
+        while (!s.eof()) {
+            s >> t;
+            if (t == 'i') {
+                s >> hub >> next_hop >> vertex >> length;
+                inhubs[vertex].push_back({.hub = hub,
+                                          .next_hop = next_hop,
+                                          .length = length});
+            } else if (t == 'o') {
+                s >> vertex >> next_hop >> hub >> length;
+                outhubs[vertex].push_back({.hub = hub,
+                                           .next_hop = next_hop,
+                                           .length = length});
+            } else {
+                s.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            }
+        }
+    }
+
     std::tuple<size_t, size_t, size_t>
     min_waiting_time(timetable& ttbl, std::vector<size_t>& waiting_times)
     {
@@ -60,18 +174,6 @@ namespace {
         return std::make_pair<>(in/n, out/n);
     }
 
-    typedef std::map<timetable::S, std::pair<V, V>> stops_vertices_t;  // (arrival, departure)
-    typedef std::map<timetable::ST, V> stations_vertices_t;
-    typedef std::vector<timetable::S> vertices_stops_t;
-    typedef std::vector<timetable::ST> vertices_stations_t;
-
-    struct min_graph_t {
-        graph_t *min_graph;
-        stops_vertices_t stops_vertices;
-        stations_vertices_t stations_vertices;
-        vertices_stops_t vertices_stops;
-        vertices_stations_t vertices_stations;
-    };
 
     void
     add_min_edge(std::map<std::pair<V, V>, W>& graph,
@@ -179,72 +281,6 @@ namespace {
                 vertices_stops, vertices_stations};
     }
 
-    void
-    graphviz(const min_graph_t& graph,
-             const std::string& path)
-    {
-        std::ofstream dot;
-        dot.open(path);
-        dot << "digraph g {" << std::endl;
-        dot << "  rankdir=\"LR\";" << std::endl;
-        for (const auto& u : *graph.min_graph) {
-            if (u < graph.vertices_stops.size())
-                dot << "  " << u << ";" << std::endl;
-            else
-                dot << "  " << u << "[shape=point];" << std::endl;
-            for (const auto& e : (*graph.min_graph)[u])
-                dot << "  " << u << " -> " << e.dst
-                    << " [label=\"" << e.wgt << "\"];" << std::endl;
-        }
-        dot << "}" << std::endl;
-        dot.close();
-    }
-
-    void
-    hl_output(pl_lab& hl, std::ostream& f)
-    {
-        std::vector<pl_lab::edgeL> edg;
-        edg = hl.in_hub_edges();
-        for (const pl_lab::edgeL &e : edg) {
-            f << "i " << e.wgt.hub << " " << e.wgt.next_hop
-              << " "  << e.dst << " " << e.wgt.dist << std::endl;
-        }
-        edg = hl.out_hub_edges();
-        for (const pl_lab::edgeL &e : edg) {
-            f << "o " << e.src << " " << e.wgt.next_hop
-              << " " << e.wgt.hub << " " << e.wgt.dist << std::endl;
-        }
-    }
-
-    struct label {
-        V hub, next_hop, length;
-    };
-
-    typedef std::map<V, std::vector<struct label>> hl_t;
-
-    void
-    hl_input(std::istream& s, hl_t& outhubs, hl_t& inhubs)
-    {
-        char t;
-        V vertex, next_hop, hub;
-        int length;
-        while (!s.eof()) {
-            s >> t;
-            if (t == 'i') {
-                s >> hub >> next_hop >> vertex >> length;
-                inhubs[vertex].push_back({.hub = hub,
-                                          .next_hop = next_hop,
-                                          .length = length});
-            } else if (t == 'o') {
-                s >> vertex >> next_hop >> hub >> length;
-                outhubs[vertex].push_back({.hub = hub,
-                                           .next_hop = next_hop,
-                                           .length = length});
-            } else {
-                s.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            }
-        }
-    }
 
     std::pair<label *, label *>
     reachability(hl_t &outhubs, hl_t &inhubs, const V& src, const V& dst)
@@ -299,40 +335,6 @@ namespace {
         path.unique();
         return path;
     }
-
-    void
-    graph_output(const mgraph<int, int>& graph, const std::string& path)
-    {
-        std::ofstream gr;
-        gr.open(path);
-        for (auto u : graph) {
-            for (auto e : graph[u]) {
-                gr << u << " " << e.dst << " " << e.wgt << std::endl;
-            }
-        }
-        gr.close();
-    }
-
-    void
-    graph_input(mgraph<int, int>& graph, const std::string& path)
-    {
-        std::vector<unit::graph::edge> edges;
-        std::ifstream f(path);
-        std::string line;
-        getline(f, line);           // header
-        while (!f.eof()) {
-            int u, v, wgt;
-            f >> u >> v >> wgt;
-            edges.push_back(unit::graph::edge(u, v, wgt));
-        }
-        graph.set_edges(edges);
-    }
-
-    struct timeprofile_t {
-        int tdep;
-        int tarr;
-    };
-
 
     // We assume that there is only one route between two stops.
     void
