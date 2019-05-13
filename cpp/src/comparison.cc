@@ -365,6 +365,7 @@ namespace {
                 trip_stop s = {.vertex = v,
                                .is_stop = false,
                                .station = mg.vertices_stations[v - max_stop],
+                               .schedule = std::vector<std::pair<timetable::T, timetable::T>>(),
                                .dist = -1};
                 tripstops.push_back(s);
             } else {
