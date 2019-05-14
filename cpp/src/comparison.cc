@@ -44,7 +44,6 @@ namespace {
         bool is_stop;
         timetable::ST station;
         std::vector<std::pair<timetable::T, timetable::T>> schedule;
-        timetable::T dist;
     };
 
     void
@@ -358,15 +357,13 @@ namespace {
                 trip_stop s = {.vertex = v,
                                .is_stop = true,
                                .station = ttbl.stop_station[stop],
-                               .schedule = ttbl.trips_of[route.first][route.second],
-                               .dist = -1};
+                               .schedule = ttbl.trips_of[route.first][route.second]};
                 tripstops.push_back(s);
             } else if (v < max_station) { // it's a station
                 trip_stop s = {.vertex = v,
                                .is_stop = false,
                                .station = mg.vertices_stations[v - max_stop],
-                               .schedule = std::vector<std::pair<timetable::T, timetable::T>>(),
-                               .dist = -1};
+                               .schedule = std::vector<std::pair<timetable::T, timetable::T>>()};
                 tripstops.push_back(s);
             } else {
                 std::cerr << v << " is neither a stop[" << max_stop <<
@@ -375,6 +372,7 @@ namespace {
             }
         }
 
+        #if 0
         // retrieve distances between stations
         for (size_t i = 0; i < tripstops.size() - 1; ++i) {
             auto &s = tripstops[i];
@@ -386,26 +384,37 @@ namespace {
                                                     tripstops[i+1].station);
             }
         }
+        #endif
     }
 
-    const std::pair<timetable::T, timetable::T> &
-    find_arrdeptime(std::vector<std::pair<timetable::T, timetable::T>> &sched,
-                    timetable::T t)
+    timetable::T
+    find_eat(std::vector<trip_stop> &tripstops,
+             const min_graph_t &mg,
+             const timetable::T deptime)
     {
-        // TODO: binary search
-        for (const auto &tp : sched) {
-            if (t <= tp.second)
-                return tp;
+        timetable::T arrtime = deptime;
+        for (size_t i = 0; i < tripstops.size() - 1; i++) {
+            auto &u = tripstops[i], &v = tripstops[i+1];
+            if (u.is_stop && v.is_stop) {
+                for (size_t j = 0; j < u.schedule.size() - 1; j++) {
+                    auto &sched = u.schedule[i];
+                    if (arrtime < sched.second) {
+                        arrtime = v.schedule[i].first;
+                        break;
+                    }
+                }
+            } else {
+                arrtime = mg.min_graph->edge_weight(u.vertex, v.vertex);
+            }
         }
-        std::cerr << "Could not find arrdeptime." << std::endl;
-        exit(1);
+        return arrtime;
     }
 
     // We assume that there is only one route between two stops.
     void
     timeprofile(std::vector<timeprofile_t> &profile,
                 const min_graph_t &mg,
-                const timetable &ttbl,
+                timetable &ttbl,
                 hl_t &outhubs, hl_t &inhubs,
                 const timetable::ST src, const timetable::ST dst,
                 const int departure_time = 0)
@@ -431,14 +440,19 @@ namespace {
         std::list<V> path = buildpath(outhubs, inhubs, vsrc, vdst);
 
         // retrieve the time schedule
-        std::vector<trip_stop> tripstops;
-        retrieve_schedule(mg, path, ttbl, tripstops);
+        std::vector<trip_stop> forward;
+        retrieve_schedule(mg, path, ttbl, forward);
+        std::vector<trip_stop> backward;
+        ttbl.reverse_time();
+        retrieve_schedule(mg, path, ttbl, backward);
 
         std::vector<timeprofile_t> timeprofiles;
         timeprofile_t tp = {0, 0};
-        for (const auto &trip : tripstops) {
-            if (trip.is_stop) {
-                //
+        timetable::T t = tp.tarr;
+        for (const auto &node : tripstops) {
+            if (node.is_stop) {
+                const auto &adt = find_arrdeptime(node.schedule, t);
+
             }
         }
     }
