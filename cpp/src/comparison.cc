@@ -39,7 +39,7 @@ namespace {
         int tarr;
     };
 
-    struct trip_stop {
+    struct journey_stop {
         V vertex;
         bool is_stop;
         timetable::ST station;
@@ -354,16 +354,18 @@ namespace {
             if (v < max_stop) { // it's a stop
                 timetable::S stop = mg.vertices_stops[v];
                 auto &route = ttbl.stop_route[stop];
-                trip_stop s = {.vertex = v,
-                               .is_stop = true,
-                               .station = ttbl.stop_station[stop],
-                               .schedule = ttbl.trips_of[route.first][route.second]};
+                journey_stop s =
+                    { .vertex = v,
+                      .is_stop = true,
+                      .station = ttbl.stop_station[stop],
+                      .schedule = ttbl.trips_of[route.first][route.second] };
                 tripstops.push_back(s);
             } else if (v < max_station) { // it's a station
-                trip_stop s = {.vertex = v,
-                               .is_stop = false,
-                               .station = mg.vertices_stations[v - max_stop],
-                               .schedule = std::vector<std::pair<timetable::T, timetable::T>>()};
+                journey_stop s =
+                    { .vertex = v,
+                      .is_stop = false,
+                      .station = mg.vertices_stations[v - max_stop],
+                      .schedule = std::vector<std::pair<timetable::T, timetable::T>>() };
                 tripstops.push_back(s);
             } else {
                 std::cerr << v << " is neither a stop[" << max_stop <<
@@ -388,7 +390,7 @@ namespace {
     }
 
     timetable::T
-    find_eat(std::vector<trip_stop> &tripstops,
+    find_eat(std::vector<journey_stop> &tripstops,
              const min_graph_t &mg,
              const timetable::T deptime)
     {
@@ -396,15 +398,23 @@ namespace {
         for (size_t i = 0; i < tripstops.size() - 1; i++) {
             auto &u = tripstops[i], &v = tripstops[i+1];
             if (u.is_stop && v.is_stop) {
+                bool found = false;
                 for (size_t j = 0; j < u.schedule.size() - 1; j++) {
                     auto &sched = u.schedule[i];
                     if (arrtime < sched.second) {
                         arrtime = v.schedule[i].first;
+                        found = true;
                         break;
                     }
                 }
+                if (!found)
+                    return -1;
             } else {
-                arrtime = mg.min_graph->edge_weight(u.vertex, v.vertex);
+                try {
+                    arrtime = mg.min_graph->edge_weight(u.vertex, v.vertex);
+                } catch (const std::invalid_argument &e) {
+                    return -1;
+                }
             }
         }
         return arrtime;
@@ -412,12 +422,12 @@ namespace {
 
     // We assume that there is only one route between two stops.
     void
-    timeprofile(std::vector<timeprofile_t> &profile,
-                const min_graph_t &mg,
+    timeprofile(const min_graph_t &mg,
                 timetable &ttbl,
                 hl_t &outhubs, hl_t &inhubs,
                 const timetable::ST src, const timetable::ST dst,
-                const int departure_time = 0)
+                std::vector<timeprofile_t> &timeprofiles,
+                const int deptime = 0)
     {
         // find the source and the destination in the static graph
         V vsrc, vdst;
@@ -440,20 +450,18 @@ namespace {
         std::list<V> path = buildpath(outhubs, inhubs, vsrc, vdst);
 
         // retrieve the time schedule
-        std::vector<trip_stop> forward;
+        std::vector<journey_stop> forward;
         retrieve_schedule(mg, path, ttbl, forward);
-        std::vector<trip_stop> backward;
+        std::vector<journey_stop> backward;
         ttbl.reverse_time();
         retrieve_schedule(mg, path, ttbl, backward);
 
-        std::vector<timeprofile_t> timeprofiles;
-        timeprofile_t tp = {0, 0};
-        timetable::T t = tp.tarr;
-        for (const auto &node : tripstops) {
-            if (node.is_stop) {
-                const auto &adt = find_arrdeptime(node.schedule, t);
-
-            }
+        timeprofile_t tp = {deptime, 0};
+        timetable::T t = 0;
+        while (t != -1) {
+            tp.tarr = find_eat(forward, mg, tp.tdep);
+            tp.tdep = find_eat(backward, mg, tp.tarr);
+            timeprofiles.push_back(tp);
         }
     }
 
@@ -470,17 +478,17 @@ namespace {
                              return acc;
                          };
 
-        std::cerr <<"Usage: "<< argv[0] <<" <command> [params]\n"
-                  << paragraph (
-                                "Compares a dynamic graph and its static minimum projection.")
-                  << paragraph (
-                                "With command 'min-hubs-next-hop <stop_times.csv> <transfers.csv>', "
-                                "it computes a static minimum graph and outputs a hub-labeling on the "
-                                "graph, with the next-hop." )
-                  << paragraph (
-                                "With command 'comparison <stop_times.csv> <transfers.csv> "
-                                "<min_graph.hl> <queries.csv>', it compaires the minimum static graph "
-                                "with the dynamic graph." );
+        std::cerr <<"Usage: "<< argv[0] <<" <command> [params]\n" <<
+            paragraph("Compares a dynamic graph and its static minimum "
+                      "projection.") <<
+            paragraph ("With command 'min-hubs-next-hop <stop_times.csv> "
+                       "<transfers.csv>', it computes a static minimum graph "
+                       "and outputs a hub-labeling on the graph, with the "
+                       "next-hop." ) <<
+            paragraph ("With command 'comparison <stop_times.csv> "
+                       "<transfers.csv> <min_graph.hl> <queries.csv>', it "
+                       "compaires the minimum static graph with the dynamic "
+                       "graph." );
         exit(1);
     }
 
@@ -515,21 +523,29 @@ int main(int argc, char *argv[]) {
         hl_output(hl, hlf);
         hlf.close();
     } else if (cmd == "comparison") {
-        auto queries =
-            read_csv(std::string(argv[5]), 6, "source","destination",
-                     "departure_time","log2_of_station_rank","station_rank","walk_time");
-        for (const auto &query : queries) {
-            V src = std::stoi(query[0]), dst = std::stoi(query[1]);
-            int departure_time = std::stoi(query[2]);
-            auto src_station = mg.stations_vertices[src],
-                dst_station = mg.stations_vertices[dst];
-        }
-
+        main_log.cerr(t) << "Reading hub labels…" << std::endl;
         hl_t outhubs, inhubs;
         std::ifstream hlf;
         hlf.open(argv[4]);
         hl_input(hlf, outhubs, inhubs);
 
+        auto queries =
+            read_csv(std::string(argv[5]), 6, "source","destination",
+                     "departure_time","log2_of_station_rank","station_rank","walk_time");
+        size_t q = 0;
+        for (const auto &query : queries) {
+            ++q;
+            V src = std::stoi(query[0]), dst = std::stoi(query[1]);
+            int deptime = std::stoi(query[2]);
+            auto src_station = mg.stations_vertices[src],
+                dst_station = mg.stations_vertices[dst];
+
+            t = main_log.lap();
+            main_log.cerr(t) << "Constructing time profile for query #" << q
+                             << "…" << std::endl;
+            timeprofile(mg, ttbl, outhubs, inhubs, src_station, dst_station,
+                        timeprofiles, deptime);
+        }
     }
 
     t = main_log.lap();
