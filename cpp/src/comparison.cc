@@ -51,6 +51,10 @@ namespace {
     {
         std::ofstream f;
         f.open(path);
+        if (!f.is_open()) {
+            std::cerr << path << ": No such file" << std::endl;
+            exit(EXIT_FAILURE);
+        }
         f << "#stops -> vertices" << std::endl;
         for (const auto &e : mg.stops_vertices)
             f << e.first << " " << e.second.first << " " << e.second.second
@@ -90,6 +94,10 @@ namespace {
     {
         std::ofstream gr;
         gr.open(path);
+        if (!gr.is_open()) {
+            std::cerr << path << ": No such file" << std::endl;
+            exit(EXIT_FAILURE);
+        }
         for (auto u : graph) {
             for (auto e : graph[u]) {
                 gr << u << " " << e.dst << " " << e.wgt << std::endl;
@@ -104,6 +112,10 @@ namespace {
     {
         std::ofstream f;
         f.open(path);
+        if (!f.is_open()) {
+            std::cerr << path << ": No such file" << std::endl;
+            exit(EXIT_FAILURE);
+        }
         for (const auto &tp : timeprofiles) {
             f << tp.tarr << " " << tp.tdep << std::endl;
         }
@@ -132,6 +144,10 @@ namespace {
     {
         std::ofstream dot;
         dot.open(path);
+        if (!dot.is_open()) {
+            std::cerr << path << ": No such file" << std::endl;
+            exit(EXIT_FAILURE);
+        }
         dot << "digraph g {" << std::endl;
         dot << "  rankdir=\"LR\";" << std::endl;
         for (const auto &u : *graph.min_graph) {
@@ -608,18 +624,27 @@ int main(int argc, char *argv[]) {
     if (cmd == "min-hubs-next-hop") {
         main_log.cerr(t) << "Building hub labelling on min graph…" << std::endl;
         std::ofstream hlf;
+        std::string path("min_graph.hl");
         pl_lab hl(*mg.min_graph);
-        hlf.open("min_graph.hl");
+        hlf.open(path);
+        if (!hlf.is_open()) {
+            std::cerr << path << ": No such file" << std::endl;
+            exit(EXIT_FAILURE);
+        }
         hl_output(hl, hlf);
         hlf.close();
     } else if (cmd == "comparison") {
-        main_log.cerr(t) << "Reading hub labels…" << std::endl;
+        main_log.cerr(t) << "Reading hub labels from " << argv[4] << "…" << std::endl;
         hl_t outhubs, inhubs;
         std::ifstream hlf;
         hlf.open(argv[4]);
+        if (!hlf.is_open()) {
+            std::cerr << argv[4] << ": No such file" << std::endl;
+            exit(EXIT_FAILURE);
+        }
         hl_input(hlf, outhubs, inhubs);
 
-        auto queries = read_csv(std::string(argv[5]), 6, "source","destination",
+        auto queries = read_csv(argv[5], 6, "source","destination",
                      "departure_time","log2_of_station_rank","station_rank",
                      "walk_time");
         auto limit = argc == 7 ? std::stoi(argv[6]) : queries.size();
