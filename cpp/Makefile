@@ -9,7 +9,7 @@ HDRS:=$(wildcard src/*.hh)
 CTRS:=$(wildcard src/*.cc)
 LDLIBS:=-lz
 LDFLAGS:=-rdynamic -lpthread
-CFLAGS:=-std=c++11 -g -pthread \
+CFLAGS:=-std=c++11 -g -pthread -Og -pipe \
         -Wall -Wno-sign-compare -Wno-unused-variable -Wno-unused-function
 
 main: raptor.o
@@ -29,6 +29,8 @@ teg: src/teg.cc $(HDRS)
 comparison: src/comparison.cc $(HDRS)
 	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
 
+comparison2: src/comparison2.cc $(HDRS)
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
 
 static_graph: src/static_graph.cc $(HDRS)
 	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
