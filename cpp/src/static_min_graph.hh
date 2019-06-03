@@ -9,13 +9,31 @@
 
 #include "timetable.hh"
 
+// If the GTFS id is "chatelet" then the station id is "chatelet". For
+// each route r at station "chatelet", we add stop "chatelet_r_arr"
+// and "chatelet_r_dep".
+
+template<typename V, // vertex-number type
+         typename W> // weight type
+
 class static_min_graph {
 public:
-    using V = int;         // vertices
-    using W = int;         // edges weigth
     using T = timetable::T;
     using R = timetable::R;
     using id = timetable::id;
+
+    // used when loading the graph from a file
+    struct node {
+        bool is_stop;
+        enum stop_type {arr, dep};
+        stop_type type;
+        int route;
+        std::string station;
+        explicit node(const std::string &st)
+            : is_stop(false), station(st) {}
+        node(const stop_type &tp, const int r, const std::string &st)
+            : is_stop(true), type(tp), route(r), station(st) {}
+    };
 
 private:
     using static_graph = std::map<std::pair<V, V>, W>;
@@ -27,15 +45,17 @@ private:
     V max_stop; // max_stop is valid iff loaded from a timetable
     V max_vertex;
 
+    template <typename VV, typename WW>
     friend std::ostream& operator<<(std::ostream &out,
-                                    const static_min_graph &gr);
+                                    const static_min_graph<VV, WW> &gr);
 
 public:
     std::map<id, std::map<R, vertex>> id_to_vertex;
     std::map<id, V> id_to_station;
     std::vector<id> node_to_id;
 
-    static_min_graph(const timetable &ttbl, const W ma = 30, const W mb = 30)
+    explicit static_min_graph(const timetable &ttbl,
+                              const W ma = 30, const W mb = 30)
         : max_stop(-1), max_vertex(0),
           id_to_vertex(), id_to_station(), node_to_id()
     {
@@ -139,10 +159,11 @@ public:
         graph = mg.reverse().reverse();
     }
 
-    static_min_graph(std::istream &f)
-        : id_to_vertex(), id_to_station(), node_to_id(),
-          max_stop(-1), max_vertex(0)
+    explicit static_min_graph(std::istream &f)
+        : max_stop(-1), max_vertex(0),
+          id_to_vertex(), id_to_station(), node_to_id()
     {
+        // FIXME: incorrect if the GTFS id already contains a '_'
         std::vector<std::string> elems(3);
         auto split =
             [&elems](const std::string &s) {
@@ -176,8 +197,6 @@ public:
                             id_to_vertex[elems[0]][std::stoi(elems[1])] = v;
                             if (is_arr) {
                                 id.replace(id.end()-3, id.end(), "arr");
-                                std::cout << "here: " << v.arr << " " << id
-                                          << std::endl;
                                 node_to_id.push_back(id);
                                 return v.arr;
                             } else {
@@ -229,6 +248,74 @@ public:
         graph = mg.reverse().reverse();
     }
 
+    bool
+    is_station_id(const id &id) const
+    {
+        auto it = id_to_station.find(id);
+        if (it == id_to_station.end()) {
+            auto it = id_to_vertex.find(id);
+            // crash if the id doesn’t exist at all
+            assert(it != id_to_vertex.end());
+            return false;
+        }
+        return true;
+    }
+
+    V
+    id_to_index(const std::string &id) const
+    {
+        node n = id_to_node(id);
+        if (n.is_stop && n.type == node::arr) {
+            return id_to_vertex.at(n.station).at(n.route).arr;
+        } else if (n.is_stop && n.type == node::dep) {
+            return id_to_vertex.at(n.station).at(n.route).dep;
+        } else {
+            return id_to_station.at(n.station);
+        }
+    }
+
+    struct node
+    index_to_node(const V &v) const
+    {
+        return id_to_node(node_to_id[v]);
+    }
+
+    struct node
+    id_to_node(const std::string &id) const
+    {
+        if (id.size() < sizeof("1_3_567") - 1)
+            return node(id);
+        typename node::stop_type type;
+        auto end = id.substr(id.size() - 3);
+        if (end == "arr")
+            type = node::stop_type::arr;
+        else if (end == "dep")
+            type = node::stop_type::dep;
+        else
+            return node(id);
+        auto i = id.rfind('_', id.size() - 5);
+        if (i == std::string::npos)
+            return node(id);
+        auto _id = id.substr(0, i);
+        auto route = id.substr(i+1, id.size() - i - 5);
+        int r;
+        try { r = std::stoi(route); }
+        catch (std::invalid_argument &e) { return node(id); }
+        return node(type, r, _id);
+    }
+
+    W
+    edge_weight(const V &src, const V &dst) const
+    {
+        return graph.edge_weight(src, dst);
+    }
+
+    bool
+    has_edge(const V &u, const V &v) const
+    {
+        return graph.has_edge(u, v);
+    }
+
     void
     graphviz_output(std::ostream &f) const
     {
@@ -250,8 +337,9 @@ public:
     }
 };
 
+template <typename V, typename W>
 std::ostream &
-operator <<(std::ostream &out, const static_min_graph &gr)
+operator <<(std::ostream &out, const static_min_graph<V, W> &gr)
 {
     for (const auto &u : gr.graph) {
         for (const auto &e : gr.graph[u]) {
