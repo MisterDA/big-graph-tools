@@ -383,9 +383,11 @@ main(int argc, const char *argv[])
             f.close();
         }
     } else if (argv[1] == commands[1].first && argc == commands[1].second + 2) {
-        timetable ttbl(argv[2], argv[3]), ttbl_rev(argv[2], argv[3]);
+        timetable ttbl(argv[2], argv[3]);
+        timetable ttbl_rev(ttbl);
+        ttbl_rev.check();
         ttbl_rev.reverse_time();
-        log("loaded timetable.");
+        log("loaded timetables.");
 
         std::ifstream gr(argv[4]);
         if (gr.bad()) {
