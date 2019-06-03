@@ -62,7 +62,7 @@ private:
         V node;
         bool is_stop;
         timetable::ST station;
-        std::pair<timetable::R, int> route;
+        const std::vector<std::pair<T,T>> *sched;
     };
 
 public:
@@ -201,9 +201,11 @@ private:
                 bool found(false);
                 for (const auto &st : ttbl->station_stops.at(station_idx)) {
                     const auto &route = ttbl->stop_route.at(st);
+                    const auto *sched = &ttbl->trips_of.at(route.first)
+                                                       .at(route.second);
                     if (route.first == node.route) {
                         tripstops.push_back({v, node.is_stop, station_idx,
-                                             route});
+                                             sched});
                         found = true;
                         break;
                     }
@@ -214,8 +216,7 @@ private:
                     assert(false);
                 }
             } else {
-                tripstops.push_back({v, node.is_stop, station_idx,
-                                     decltype(journey_stop::route)()});
+                tripstops.push_back({v, node.is_stop, station_idx, nullptr});
             }
         }
     }
@@ -229,13 +230,28 @@ private:
             auto &u = tripstops[i], &v = tripstops[i+1];
             if (u.is_stop && v.is_stop) {
                 bool found = false;
-                const auto
-                    &usched = ttbl->trips_of[u.route.first][u.route.second],
-                    &vsched = ttbl->trips_of[v.route.first][v.route.second];
-                assert(usched.size() == vsched.size());
-                for (size_t j = 0; j < usched.size() - 1; ++j) {
-                    if (arrtime < usched[j].second) {
-                        arrtime = vsched[j].first;
+                // const auto
+                //     &usched = ttbl->trips_of.at(u.route.first)
+                //                             .at(u.route.second),
+                //     &vsched = ttbl->trips_of.at(v.route.first)
+                //                             .at(v.route.second);
+                const auto &usched = u.sched, &vsched = v.sched;
+
+
+                std::cout << std::endl;
+                std::cout << "u: " << u.node << ", " << usched->size() << " "
+                          << "v: " << v.node << ", " << vsched->size() << std::endl;
+                for (const auto &e : *usched)
+                    std::cout << e.first << " " << e.second << std::endl;
+                std::cout << std::endl;
+                for (const auto &e : *vsched)
+                    std::cout << e.first << " " << e.second << std::endl;
+                std::cout << std::endl;
+
+                assert(usched->size() == vsched->size());
+                for (size_t j = 0; j < usched->size() - 1; ++j) {
+                    if (arrtime < usched->at(j).second) {
+                        arrtime = vsched->at(j).first;
                         found = true;
                         break;
                     }
@@ -264,13 +280,14 @@ private:
             auto &u = tripstops[i], &v = tripstops[i-1];
             if (u.is_stop && v.is_stop) {
                 bool found = false;
-                const auto
-                    &usched = ttbl_rev->trips_of[u.route.first][u.route.second],
-                    &vsched = ttbl_rev->trips_of[v.route.first][v.route.second];
-                assert(usched.size() == vsched.size());
-                for (size_t j = 0; j < usched.size() - 1; ++j) {
-                    if (arrtime < usched[j].second) {
-                        arrtime = vsched[j].first;
+                // const auto
+                //     &usched = ttbl_rev->trips_of[u.route.first][u.route.second],
+                //     &vsched = ttbl_rev->trips_of[v.route.first][v.route.second];
+                const auto &usched = u.sched, &vsched = v.sched;
+                assert(usched->size() == vsched->size());
+                for (size_t j = 0; j < usched->size() - 1; ++j) {
+                    if (arrtime < usched->at(j).second) {
+                        arrtime = vsched->at(j).first;
                         found = true;
                         break;
                     }
