@@ -26,13 +26,7 @@ gtfs2graph: src/gtfs2graph.cc $(HDRS)
 teg: src/teg.cc $(HDRS)
 	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
 
-comparison: src/comparison.cc $(HDRS)
-	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
-
 comparison2: src/comparison2.cc $(HDRS)
-	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
-
-static_graph: src/static_graph.cc $(HDRS)
 	$(CXX) $(CFLAGS) $(LDFLAGS) $(LDLIBS) -o $@ $<
 
 test: test.o
