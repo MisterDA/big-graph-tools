@@ -17,7 +17,7 @@ namespace {
     usage_exit(const char *name)
     {
         std::cout << name << " static_min_graph <stop_times.csv> "
-            "<transfers.csv> <output.gr>" << std::endl
+            "<transfers.csv> <output.gr> [output.gv]" << std::endl
                   << "  Generates a static minimum graph usable for hub-"
             "labeling." << std::endl
                   << std::endl
@@ -193,7 +193,7 @@ private:
     {
         for (const auto &v : path) {
             // fetch the id from the static_min_graph index
-            auto node = mg->index_to_node(v);
+            const auto &node = mg->index_to_node(v);
             const timetable::ST &station_idx =
                 ttbl->id_to_station.at(node.station);
             if (node.is_stop) {
@@ -201,11 +201,11 @@ private:
                 bool found(false);
                 for (const auto &st : ttbl->station_stops.at(station_idx)) {
                     const auto &route = ttbl->stop_route.at(st);
-                    const auto *sched = &ttbl->trips_of.at(route.first)
-                                                       .at(route.second);
                     if (route.first == node.route) {
+                        const auto *sched1 = &ttbl->trips_of.at(route.first);
+                        const auto *sched2 = &sched1->at(route.second);
                         tripstops.push_back({v, node.is_stop, station_idx,
-                                             sched});
+                                             sched2});
                         found = true;
                         break;
                     }
@@ -362,7 +362,7 @@ main(int argc, const char *argv[])
 
     size_t _limit = 10;
 
-    if (argv[1] == commands[0].first && argc == commands[0].second + 2) {
+    if (argv[1] == commands[0].first && argc >= commands[0].second + 2) {
         timetable ttbl(argv[2], argv[3]);
         static_min_graph<int, int> mg(ttbl);
         std::ofstream f(argv[4]);
@@ -372,6 +372,16 @@ main(int argc, const char *argv[])
         }
         f << mg;
         f.close();
+
+        if (argc == 6) {
+            std::ofstream f(argv[5]);
+            if (f.bad()) {
+                perror(argv[5]);
+                exit(EXIT_FAILURE);
+            }
+            mg.graphviz_output(f);
+            f.close();
+        }
     } else if (argv[1] == commands[1].first && argc == commands[1].second + 2) {
         timetable ttbl(argv[2], argv[3]), ttbl_rev(argv[2], argv[3]);
         ttbl_rev.reverse_time();
