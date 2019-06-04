@@ -60,8 +60,8 @@ private:
 
     struct stop_schedule {
         V index;
-        bool is_stop;
-        const std::vector<T> *departures, *arrivals;
+        enum {station, arr, dep} type;
+        const std::vector<T> *events; // only if type is arr or dep
     };
 
 public:
@@ -81,7 +81,8 @@ public:
                  const size_t limit,
                  std::ostream &out) const
     {
-        std::vector<tp> values(128);
+        std::vector<tp> values;
+        values.reserve(128);
         for (std::remove_const<decltype(limit)>::type q = 0; q < limit; ++q) {
             const auto &query = queries[q];
             V src = mg->id_to_station.at(query[0]),
@@ -117,26 +118,34 @@ public:
             if (vertex.is_stop) {
                 for (const auto &stop : ttbl->station_stops.at(station_idx)) {
                     if (ttbl->stop_route.at(stop).first == vertex.route) {
-                        return { v, true,
-                                 &ttbl->stop_arrivals.at(stop),
-                                 &ttbl->stop_departures.at(stop)};
+                        switch (vertex.type) {
+                        case decltype(vertex.type)::arr:
+                            return {v, stop_schedule::arr,
+                                    &ttbl->stop_arrivals.at(stop)};
+                        case decltype(vertex.type)::dep:
+                            return {v, stop_schedule::dep,
+                                    &ttbl->stop_departures.at(stop)};
+                        }
                     }
                 }
                 std::cerr << "Could not find " << v << " in timetable."
                           << std::endl;
                 assert(false);
             } else {
-                return {v, false, nullptr, nullptr};
+                return {v, stop_schedule::station, nullptr};
             }
         };
 
         // retrieve the time schedule
+        log("forward retrieve schedule");
         std::vector<stop_schedule> forward, backward;
         std::transform(path.begin(), path.end(), std::back_inserter(forward),
                        retrieve_schedule);
+        log("done.\nbackards retrieve schedule");
         ttbl = this->ttbl_rev;
-        std::transform(path.begin(), path.end(), std::back_inserter(forward),
+        std::transform(path.begin(), path.end(), std::back_inserter(backward),
                        retrieve_schedule);
+        log("done");
 
         tp tp = {.tdep = deptime, .tarr = 0};
         while (true) {
@@ -215,28 +224,53 @@ private:
                           const timetable::T deptime) const
     {
         timetable::T arrtime = deptime;
+        // auto p = [this, &arrtime](const stop_schedule &u, const stop_schedule &v)
+        //          { std::cout << mg->index_to_id[u.index] << " -> "
+        //                      << mg->index_to_id[v.index] << " @ " << arrtime << " ";
+        //              return &std::cout; };
         for (size_t i = 0; i < journey.size() - 1; ++i) {
             const auto &u = journey[i], &v = journey[i+1];
-            if (u.is_stop && v.is_stop) {
+            if (u.type == stop_schedule::dep &&
+                v.type == stop_schedule::arr) {
                 // find the first departure time from u after arrtime
-                assert(u.departures->size() == v.arrivals->size());
+                assert(u.events->size() == v.events->size());
                 bool found(false);
-                for (size_t j = 0; j < u.departures->size(); ++j) {
-                    timetable::T t = (*u.departures)[j];
-                    if (arrtime < t) {
-                        arrtime = (*v.arrivals)[j];
+                for (size_t j = 0; j < u.events->size(); ++j) {
+                    timetable::T t = (*u.events)[j];
+                    if (arrtime <= t) {
+                        arrtime = (*v.events)[j];
                         found = true;
                     }
                 }
-                if (!found) return -1;
+                if (!found) {
+                    // *p(u,v) << "a" << std::endl;
+                    return -1;
+                }
+            } else if (u.type == stop_schedule::arr &&
+                       v.type == stop_schedule::dep) {
+                bool found(false);
+                for (size_t j = 0; j < v.events->size(); ++j) {
+                    timetable::T t = (*v.events)[j];
+                    if (arrtime <= t) {
+                        arrtime = t;
+                        found = true;
+                    }
+                }
+                if (!found) {
+                    // *p(u,v) << "b" << std::endl;
+                    return -1;
+                }
             } else {
                 try {
                     arrtime += mg->edge_weight(u.index, v.index);
                 } catch (const std::invalid_argument &e) {
+                    // *p(u,v) << "c" << std::endl;
                     return -1;
                 }
             }
+            // *p(u,v) << "d" << std::endl;
         }
+        // std::cout << arrtime << " e" << std::endl;
         return arrtime;
     }
 
@@ -245,28 +279,53 @@ private:
                               const timetable::T arrtime) const
     {
         timetable::T deptime = arrtime;
+        // auto p = [this, &deptime](const stop_schedule &u, const stop_schedule &v)
+        //     { std::cout << mg->index_to_id[u.index] << " @ " << deptime << " -> "
+        //                 << mg->index_to_id[v.index] << " ";
+        //       return &std::cout; };
+        // std::cout << "@: " << deptime << std::endl;
         for (size_t i = journey.size() - 1; i > 0; --i) {
-            auto &u = journey[i], &v = journey[i-1];
-            if (u.is_stop && v.is_stop) {
+            auto &u = journey[i-1], &v = journey[i];
+            if (u.type == stop_schedule::dep &&
+                v.type == stop_schedule::arr) {
                 // find the first departure time from u after arrtime
-                assert(u.departures->size() == v.arrivals->size());
+                assert(u.events->size() == v.events->size());
                 bool found(false);
-                for (size_t j = 0; j < v.arrivals->size(); ++j) {
-                    timetable::T t = (*v.arrivals)[j];
-                    if (deptime == t) {
-                        deptime = (*u.departures)[j];
+                for (size_t j = 0; j < v.events->size(); ++j) {
+                    if (deptime == (*v.events)[j]) {
+                        deptime = (*u.events)[j];
                         found = true;
                     }
                 }
-                if (!found) return 1;
+                if (!found) {
+                    // *p(u,v) << "a" << std::endl;
+                    return 1;
+                }
+            } else if (u.type == stop_schedule::arr &&
+                       v.type == stop_schedule::dep) {
+                bool found(false);
+                for (size_t j = 0; j < v.events->size(); ++j) {
+                    timetable::T t = (*v.events)[j];
+                    if (deptime == t) {
+                        deptime = (*u.events)[j];;
+                        found = true;
+                    }
+                }
+                if (!found) {
+                    // *p(u,v) << "b" << std::endl;
+                    return 1;
+                }
             } else {
                 try {
-                    deptime -= mg->edge_weight(u.index, v.index);
+                    deptime += mg->edge_weight(u.index, v.index);
                 } catch (const std::invalid_argument &e) {
+                    // *p(u,v) << "c" << std::endl;
                     return 1;
                 }
             }
+            // *p(u,v) << "d" << std::endl;
         }
+        // std::cout << deptime << " e" << std::endl;
         return deptime;
     }
 
@@ -306,9 +365,9 @@ private:
 namespace {
     void
     f(const std::vector<comparison::tp> &tps, std::ostream &out) {
-        out << "arrival,departure" << std::endl;
+        out << "departure,arrival" << std::endl;
         for (const auto &tp : tps)
-            out << tp.tarr << "," << tp.tdep << std::endl;
+            out << tp.tdep << "," << tp.tarr << std::endl;
     }
 
 };
@@ -365,7 +424,7 @@ main(int argc, const char *argv[])
             perror(argv[5]);
             exit(EXIT_FAILURE);
         }
-        log(argv[5]);
+        log("loaded hub labeling");
         comparison cmp(mg, ttbl, ttbl_rev, hl);
         log("loaded comparison.");
 
