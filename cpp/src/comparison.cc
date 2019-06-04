@@ -30,12 +30,12 @@ namespace {
     }
 
     auto start = std::chrono::high_resolution_clock::now();
-    auto end = std::chrono::system_clock::now();
+    auto end = std::chrono::high_resolution_clock::now();
 
     void
     log(const std::string &str)
     {
-        end = std::chrono::system_clock::now();
+        end = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> dur = end-start;
         std::cerr << dur.count() << "s: " << str << std::endl;
     }
@@ -58,11 +58,10 @@ private:
     const timetable *ttbl, *ttbl_rev;
     const static_min_graph<V, W> *mg;
 
-    struct journey_stop {
-        V node;
+    struct stop_schedule {
+        V index;
         bool is_stop;
-        timetable::ST station;
-        const std::vector<std::pair<T,T>> *sched;
+        const std::vector<T> *departures, *arrivals;
     };
 
 public:
@@ -104,22 +103,48 @@ public:
 
         std::cerr << "path: ";
         for (auto const &v : path)
-            std::cerr << v << " ";
+            std::cerr << mg->index_to_id[v] << " ";
         std::cerr << std::endl;
 
+        // Retrieve the schedule at each node in the path, following the routes
+        const timetable *ttbl = this->ttbl;
+        auto retrieve_schedule = [this, &ttbl](const V &v) -> stop_schedule
+        {
+            // fetch the id from the static_min_graph index
+            const auto &vertex = mg->index_to_vertex(v);
+            const timetable::ST &station_idx =
+                ttbl->id_to_station.at(vertex.station_id);
+            if (vertex.is_stop) {
+                for (const auto &stop : ttbl->station_stops.at(station_idx)) {
+                    if (ttbl->stop_route.at(stop).first == vertex.route) {
+                        return { v, true,
+                                 &ttbl->stop_arrivals.at(stop),
+                                 &ttbl->stop_departures.at(stop)};
+                    }
+                }
+                std::cerr << "Could not find " << v << " in timetable."
+                          << std::endl;
+                assert(false);
+            } else {
+                return {v, false, nullptr, nullptr};
+            }
+        };
+
         // retrieve the time schedule
-        std::vector<journey_stop> forward;
-        retrieve_schedule(path, ttbl, forward);
-        std::vector<journey_stop> backward;
-        retrieve_schedule(path, ttbl_rev, backward);
+        std::vector<stop_schedule> forward, backward;
+        std::transform(path.begin(), path.end(), std::back_inserter(forward),
+                       retrieve_schedule);
+        ttbl = this->ttbl_rev;
+        std::transform(path.begin(), path.end(), std::back_inserter(forward),
+                       retrieve_schedule);
 
         tp tp = {.tdep = deptime, .tarr = 0};
         while (true) {
-            tp.tarr = find_eat(forward, tp.tdep);
+            tp.tarr = earliest_arrival_time(forward, tp.tdep);
             std::cerr << "EAT(" << tp.tdep << ") = " << tp.tarr << std::endl;
             if (tp.tarr == -1)
                 break;
-            tp.tdep = -find_eat_rev(backward, -tp.tarr);
+            tp.tdep = -earliest_arrival_time_rev(backward, -tp.tarr);
             std::cerr << "REAT(" << tp.tarr << ") = " << tp.tdep << std::endl;
             if (tp.tdep == -1)
                 break;
@@ -185,85 +210,29 @@ private:
         return path;
     }
 
-    // Retrieve the schedule at each node in the path, following the routes
-    void
-    retrieve_schedule(const std::list<V> &path,
-                      const timetable *ttbl,
-                      std::vector<journey_stop> &tripstops) const
+    timetable::T
+    earliest_arrival_time(const std::vector<stop_schedule> &journey,
+                          const timetable::T deptime) const
     {
-        for (const auto &v : path) {
-            // fetch the id from the static_min_graph index
-            const auto &node = mg->index_to_node(v);
-            const timetable::ST &station_idx =
-                ttbl->id_to_station.at(node.station);
-            if (node.is_stop) {
-                // fetch the timetable index corresponding to this node
+        timetable::T arrtime = deptime;
+        for (size_t i = 0; i < journey.size() - 1; ++i) {
+            const auto &u = journey[i], &v = journey[i+1];
+            if (u.is_stop && v.is_stop) {
+                // find the first departure time from u after arrtime
+                assert(u.departures->size() == v.arrivals->size());
                 bool found(false);
-                for (const auto &st : ttbl->station_stops.at(station_idx)) {
-                    const auto &route = ttbl->stop_route.at(st);
-                    if (route.first == node.route) {
-                        const auto *sched1 = &ttbl->trips_of.at(route.first);
-                        const auto *sched2 = &sched1->at(route.second);
-                        tripstops.push_back({v, node.is_stop, station_idx,
-                                             sched2});
+                for (size_t j = 0; j < u.departures->size(); ++j) {
+                    timetable::T t = (*u.departures)[j];
+                    if (arrtime < t) {
+                        arrtime = (*v.arrivals)[j];
                         found = true;
-                        break;
                     }
                 }
-                if (!found) {
-                    std::cerr << "Could not find timetable index for node " << v
-                              << std::endl;
-                    assert(false);
-                }
-            } else {
-                tripstops.push_back({v, node.is_stop, station_idx, nullptr});
-            }
-        }
-    }
-
-    timetable::T
-    find_eat(const std::vector<journey_stop> &tripstops,
-             const timetable::T deptime) const
-    {
-        timetable::T arrtime = deptime;
-        for (size_t i = 0; i < tripstops.size() - 1; ++i) {
-            auto &u = tripstops[i], &v = tripstops[i+1];
-            if (u.is_stop && v.is_stop) {
-                bool found = false;
-                // const auto
-                //     &usched = ttbl->trips_of.at(u.route.first)
-                //                             .at(u.route.second),
-                //     &vsched = ttbl->trips_of.at(v.route.first)
-                //                             .at(v.route.second);
-                const auto &usched = u.sched, &vsched = v.sched;
-
-
-                std::cout << std::endl;
-                std::cout << "u: " << u.node << ", " << usched->size() << " "
-                          << "v: " << v.node << ", " << vsched->size() << std::endl;
-                for (const auto &e : *usched)
-                    std::cout << e.first << " " << e.second << std::endl;
-                std::cout << std::endl;
-                for (const auto &e : *vsched)
-                    std::cout << e.first << " " << e.second << std::endl;
-                std::cout << std::endl;
-
-                assert(usched->size() == vsched->size());
-                for (size_t j = 0; j < usched->size() - 1; ++j) {
-                    if (arrtime < usched->at(j).second) {
-                        arrtime = vsched->at(j).first;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found)
-                    return -1;
+                if (!found) return -1;
             } else {
                 try {
-                    arrtime += mg->edge_weight(u.node, v.node);
+                    arrtime += mg->edge_weight(u.index, v.index);
                 } catch (const std::invalid_argument &e) {
-                    std::cerr << e.what() << " " << u.node << "->"<< v.node
-                              << std::endl;
                     return -1;
                 }
             }
@@ -272,39 +241,33 @@ private:
     }
 
     timetable::T
-    find_eat_rev(const std::vector<journey_stop> &tripstops,
-                 const timetable::T deptime) const
+    earliest_arrival_time_rev(const std::vector<stop_schedule> &journey,
+                              const timetable::T arrtime) const
     {
-        timetable::T arrtime = deptime;
-        for (size_t i = tripstops.size() - 1; i > 0; --i) {
-            auto &u = tripstops[i], &v = tripstops[i-1];
+        timetable::T deptime = arrtime;
+        for (size_t i = journey.size() - 1; i > 0; --i) {
+            auto &u = journey[i], &v = journey[i-1];
             if (u.is_stop && v.is_stop) {
-                bool found = false;
-                // const auto
-                //     &usched = ttbl_rev->trips_of[u.route.first][u.route.second],
-                //     &vsched = ttbl_rev->trips_of[v.route.first][v.route.second];
-                const auto &usched = u.sched, &vsched = v.sched;
-                assert(usched->size() == vsched->size());
-                for (size_t j = 0; j < usched->size() - 1; ++j) {
-                    if (arrtime < usched->at(j).second) {
-                        arrtime = vsched->at(j).first;
+                // find the first departure time from u after arrtime
+                assert(u.departures->size() == v.arrivals->size());
+                bool found(false);
+                for (size_t j = 0; j < v.arrivals->size(); ++j) {
+                    timetable::T t = (*v.arrivals)[j];
+                    if (deptime == t) {
+                        deptime = (*u.departures)[j];
                         found = true;
-                        break;
                     }
                 }
-                if (!found)
-                    return -1;
+                if (!found) return 1;
             } else {
                 try {
-                    arrtime -= mg->edge_weight(u.node, v.node);
+                    deptime -= mg->edge_weight(u.index, v.index);
                 } catch (const std::invalid_argument &e) {
-                    std::cerr << e.what() << " " << u.node << "->" << v.node
-                              << std::endl;
-                    return -1;
+                    return 1;
                 }
             }
         }
-        return arrtime;
+        return deptime;
     }
 
     void

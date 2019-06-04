@@ -141,13 +141,13 @@ public:
         V max_index(0);        // == index_to_id.size();
 
         auto find_or_add = [this, &max_index](const id &id) {
-            vertex &v = id_to_vertex(id);
-            V station_idx = find_or_add_station(v.station, max_index);
+            const vertex &v = id_to_vertex(id);
+            V station_idx = find_or_add_station(v.station_id, max_index);
             if (!v.is_stop) return station_idx;
-            auto f = [&v](const stop &s) {
-                         return v.stop_type == stop::arr ? s.arr : s.dep; };
-            return find_or_add_stop(v.station, station_idx,
-                                    v.route, max_index, f);
+            auto f = [&v](const stop &s) { return s; };
+            const stop &s = find_or_add_stop(v.station_id, station_idx,
+                                       v.route, max_index, f);
+            return v.type == vertex::stop_type::arr ? s.arr : s.dep;
         };
 
         std::vector<unit::graph::edge> edges;
@@ -163,6 +163,25 @@ public:
         assert(max_index == index_to_id.size());
         auto mg = mgraph<V, W>(max_index, edges);
         graph = mg.reverse().reverse();
+    }
+
+    struct vertex
+    index_to_vertex(const V idx) const
+    {
+        return id_to_vertex(index_to_id.at(idx));
+    }
+
+    V
+    id_to_index(const id &id) const
+    {
+        vertex v = id_to_vertex(id);
+        V station_idx = id_to_station.at(v.station_id);
+        if (!v.is_stop)
+            return station_idx;
+        if (v.type == vertex::stop_type::arr)
+            return station_stops.at(station_idx).at(v.route).arr;
+        else
+            return station_stops.at(station_idx).at(v.route).dep;
     }
 
     W
@@ -251,8 +270,8 @@ private:
 
     // Converts an id read from a file to a vertex struct, but does
     // not add the vertex to the graph.
-    struct vertex
-    id_to_vertex(const id &id) const
+    static const struct vertex
+    id_to_vertex(const id &id)
     {
         if (id.size() < sizeof("1_3_567") - 1)
             return vertex(id);
@@ -274,40 +293,6 @@ private:
         catch (std::invalid_argument &e) { return vertex(id); }
         return vertex(type, r, _id);
     }
-
-#if 0 // Maybe depreciated
-    bool
-    is_station_id(const id &id) const
-    {
-        auto it = id_to_station.find(id);
-        if (it == id_to_station.end()) {
-            auto it = id_to_vertex.find(id);
-            // crash if the id doesn’t exist at all
-            assert(it != id_to_vertex.end());
-            return false;
-        }
-        return true;
-    }
-
-    V
-    id_to_index(const std::string &id) const
-    {
-        node n = id_to_node(id);
-        if (n.is_stop && n.type == node::arr) {
-            return id_to_vertex.at(n.station).at(n.route).arr;
-        } else if (n.is_stop && n.type == node::dep) {
-            return id_to_vertex.at(n.station).at(n.route).dep;
-        } else {
-            return id_to_station.at(n.station);
-        }
-    }
-
-    struct node
-    index_to_node(const V &v) const
-    {
-        return id_to_node(node_to_id[v]);
-    }
-#endif
 };
 
 template <typename V, typename W>
