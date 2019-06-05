@@ -17,15 +17,17 @@ private:
     const size_t max_line_size;
 
 public:
-    file_or_gz(std::string filename, size_t mls=10000) : max_line_size(mls) {
-        gzipped = filename.size() > 3
-            && filename.substr(filename.size() - 3) == ".gz";
+    file_or_gz(std::string filename, size_t mls=10000)
+        : gzipped(filename.size() > 3 &&
+                  filename.substr(filename.size() - 3) == ".gz"),
+          max_line_size(mls)
+    {
         if (gzipped) {
             gz_in = gzopen(filename.c_str(), "r");
         } else {
             in = filename != "-" ? fopen(filename.c_str(), "r") : stdin;
         }
-        if (gzipped ? gz_in == nullptr : in  == nullptr) {
+        if (gzipped ? gz_in == Z_NULL : in  == nullptr) {
             perror(filename.c_str());
             exit(EXIT_FAILURE);
         }
@@ -63,7 +65,9 @@ read_tuples(const std::string filename, const size_t ncols) {
         if (line == "") break;
         auto v = split(line, ' ');
         if (v.size() != ncols) {
-            std::cerr <<"wrong ncols : '"<< line <<"'\n";
+            std::cerr << "Wrong ncols: expected " << ncols << ", got "
+                      << v.size() << " for '" << line << "' in " << filename
+                      << ".\n";
             assert(v.size() == ncols);
         }
         rows.push_back(v);
@@ -100,8 +104,9 @@ read_csv(const std::string filename, const size_t ncol, ...) { // ... = column n
             }
             for (int j = 0; j < ncol; ++j) {
                 if (cols[j] < 0)
-                    throw std::invalid_argument("missing column : "
-                                                + colnames[j] + " in:\n'" + line + "'");
+                    throw std::invalid_argument("Missing column: " + colnames[j]
+                                                + " in:\n'" + line + "'\n"
+                                                + filename);
             }
         } else {
             auto v = split(line, ',');
