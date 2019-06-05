@@ -92,8 +92,9 @@ int main (int argc, char **argv) {
             dir+"calendar.txt", dir+"calendar_dates.txt",
             dir+"trips.txt", dir+"stop_times.txt", dir+"transfers.txt", true};
     */
+    bool hubs_nh(has_opt(argc, argv, "-hubs_nh"));
     timetable ttbl{dir+"stop_times.csv.gz",
-                   dir+"in_hubs.gr.gz", dir+"out_hubs.gr.gz",
+                   dir+"in_hubs.gr.gz", dir+"out_hubs.gr.gz", hubs_nh,
                    dir+"transfers.csv.gz", true};
     //dir+"walking_and_transfers.gr", t_from, t_to};
     std::cerr << ttbl.n_r <<" routes, "<< ttbl.n_st <<" sations, "

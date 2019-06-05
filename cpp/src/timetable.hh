@@ -90,7 +90,7 @@ public:
     }
 
     timetable(std::string stop_times,
-              std::string inhubsfile, std::string outhubsfile,
+              std::string inhubsfile, std::string outhubsfile, bool hubs_nh,
               std::string transfersfile, bool symmetrize = false,
               std::string walkingfile="", T t_from=0, T t_to=0)
         : n_st(0), n_tr(0), n_s(0), n_r(0), n_h(0)
@@ -122,15 +122,16 @@ public:
         // in-hubs :
         std::vector<graph::edge> edg;
         std::vector<bool> seen(n_st, false);
-        auto rows = read_tuples(inhubsfile, 3);
+        auto rows = read_tuples(inhubsfile, hubs_nh ? 4 : 3);
         edg.reserve(rows.size());
+        int hubpos(0), stoppos(hubs_nh ? 2 : 1), delaypos(hubs_nh ? 3 : 2);
         for (auto r : rows) {
-            auto st = id_to_station.find(r[1]);
+            auto st = id_to_station.find(r[stoppos]);
             if (st != id_to_station.end()) {
-                ST h = get_hub(r[0]);
+                ST h = get_hub(r[hubpos]);
                 ST s = st->second;
                 seen[s] = true;
-                T delay = std::stoi(r[2]);
+                T delay = std::stoi(r[delaypos]);
                 edg.push_back(graph::edge(h, s, delay));
             }
         }
@@ -146,18 +147,19 @@ public:
                   <<", avg out-degree "<< inhubs.m() / n_h
                   <<", max out-degree "<< inhubs.max_degree()
                   <<"\n";
-        // out-hubs :
         edg.clear();
+        // out-hubs :
         for (int st = 0; st < n_st; ++st) seen[st] = false;
-        rows = read_tuples(outhubsfile, 3);
+        rows = read_tuples(outhubsfile, hubs_nh ? 4 : 3);
         edg.reserve(rows.size());
+        stoppos = 0; hubpos = hubs_nh ? 2 : 1; delaypos = hubs_nh ? 3 : 2;
         for (auto r : rows) {
-            auto st = id_to_station.find(r[0]);
+            auto st = id_to_station.find(r[stoppos]);
             if (st != id_to_station.end()) {
                 ST s = st->second;
-                auto h = id_to_hub.find(r[1]);
+                auto h = id_to_hub.find(r[hubpos]);
                 if (h != id_to_hub.end()) {
-                    T delay = std::stoi(r[2]);
+                    T delay = std::stoi(r[delaypos]);
                     edg.push_back(graph::edge(s, h->second, delay));
                 }
             }
@@ -175,6 +177,7 @@ public:
                   <<", avg in-degree "<< outhubs.m() / n_h
                   <<"\n";
         std::cerr << n_h <<" hubs\n";
+        edg.clear();
 
         // Check weight sort:
         for (ST u : outhubs) {
