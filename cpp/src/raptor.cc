@@ -18,7 +18,7 @@ void usage_exit (char **argv) {
         }
         return acc;
     };
-    
+
     std::cerr <<"Usage: "<< argv[0]
               <<" [options] gtfs_dir\n"
               <<"Options:\n"
@@ -172,7 +172,7 @@ int main (int argc, char **argv) {
         }
         main_log.cerr(t) << n_q <<" Random queries, success rate : "
                          << (n_q*100/n_try) <<"%\n";
-        
+
         t = main_log.lap();
     }
     // */
@@ -205,7 +205,7 @@ int main (int argc, char **argv) {
         std::cout <<" -------- "<< (hubs ? "HL_" : "") <<"RaptorREV_trips "
                   <<"from "<< dst << "=" << ttbl.station_id[dst] <<" at "<< t;
         rev_rpt.print_journey(src, std::cout, 0, chg);
-        
+
         arr = csa.earliest_arrival_time(src, dst, t, hubs, ! hubs, chg);
         std::cout <<" -------- "<< (hubs ? "HL_" : "") <<"CSA "
                   <<"from "<< src << "=" << ttbl.station_id[src] <<" at "<< t;
@@ -426,7 +426,7 @@ int main (int argc, char **argv) {
         t = main_log.lap();
     }
     // */
-    
+
 
 
 
@@ -438,8 +438,8 @@ int main (int argc, char **argv) {
                   << (main_log.lap() - t) * 1000.0 / n_q <<"\n";
     };
     t = main_log.lap();
-    
-    
+
+
     // go Raptor restricted walk
     sum = 0, n_ok = 0;
     for (auto q : queries) {
@@ -482,7 +482,7 @@ int main (int argc, char **argv) {
                      << (sum / n_ok)
                      << "  "<< n_ok <<"/"<< queries.size() <<" ok\n";
     t = main_log.lap();
-    
+
     // go CSA
     sum = 0, n_ok = 0;
     for (auto q : queries) {
@@ -523,10 +523,10 @@ int main (int argc, char **argv) {
                      << "  "<< n_ok <<"/"<< queries.size() <<" ok\n";
     t = main_log.lap();
 
-    
+
     if (has_opt(argc, argv, "-exit-after-csa")) exit(0);
 
-    
+
     //* go Pareto
     sum = 0, n_ok = 0;
     for (auto q : queries) {
@@ -545,7 +545,7 @@ int main (int argc, char **argv) {
                      << "  "<< n_ok <<"/"<< queries.size() <<" ok\n";
     t = main_log.lap();
     // */
-    
+
     //* go HLPareto
     sum = 0, n_ok = 0;
     for (auto q : queries) {
@@ -595,7 +595,7 @@ int main (int argc, char **argv) {
 
     // int range_2h = has_opt(argc, argv, "-2h-range");
     for (int range_2h = 1; range_2h != -1; --range_2h) {
-    
+
     // go profile Raptor
     sum = 0, n_ok = 0;
     for (auto q : queries) {
@@ -619,7 +619,7 @@ int main (int argc, char **argv) {
                      << "  "<< n_ok <<"/"<< queries.size() <<" ok\n";
     t = main_log.lap();
 
-    
+
     // go profile HLRaptor
     sum = 0, n_ok = 0;
     for (auto q : queries) {
@@ -645,7 +645,7 @@ int main (int argc, char **argv) {
                      << (sum / n_ok)
                      << "  "<< n_ok <<"/"<< queries.size() <<" ok\n";
     t = main_log.lap();
-    // */    
+    // */
 
 
     // go profile CSA
@@ -673,7 +673,7 @@ int main (int argc, char **argv) {
                      << (sum / n_ok)
                      << "  "<< n_ok <<"/"<< queries.size() <<" ok\n";
     t = main_log.lap();
-    // */    
+    // */
 
 
     // go profile HLCSA

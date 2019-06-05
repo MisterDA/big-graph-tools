@@ -22,12 +22,12 @@
  *   edges.push_back(graph::edge(2,3,200));
  *   graph g(4, edges); // 0 is also a vertex
  *   for (int u : g)
- *      for (auto e : g[u]) 
+ *      for (auto e : g[u])
  *         std::cout << u << " " << e.dst << " " << e.wgt << std::endl;
  *
  *   // ignoring weights :
  *   for (int u : g)
- *      for (int v : g[u]) 
+ *      for (int v : g[u])
  *         std::cout << u << " " << v << std::endl;
  */
 
@@ -44,12 +44,12 @@ public:
     typedef V vertex;
     typedef W weight;
     typedef edge::dst_wgt<V,W> edge_head;  // A dst,wgt pair.
-    
+
 private:
     V n_;            // number of vertices
     std::vector<size_t> sdeg;    // prefix sum of degrees
     std::vector<edge_head> adj;  // neighbors of u are at index sdeg[u]
-    
+
 public:
 
     V n() const { return n_; }
@@ -61,7 +61,7 @@ public:
     mgraph(V n, const std::vector<edge> &edg) {
         init_from_edges(n, edg);
     }
-    
+
     mgraph(const std::vector<edge> &edg) {
         set_edges(edg);
     }
@@ -90,15 +90,15 @@ public:
         }
         return d;
     }
-    
+
     edge_head neighbor(V u, size_t i) {
         size_t e = sdeg[u] + i;
         assert(e < sdeg[u+1]);
         return adj[e];
     }
-    
+
     size_t degree_sum(V u) const { return sdeg[u]; }
-    
+
     // asserts sorted adjacency lists (use g.reverse() or g.reverse().reverse())
     bool has_edge(V u, V v) const {
         size_t e1 = sdeg[u], e2 = sdeg[u+1];
@@ -155,16 +155,16 @@ public:
                     if (r.has_edge(u, v))
                     std::cerr << w <<" "<< r.edge_weight(u, v) <<"\n"; */
                     ++n_asym;
-                } 
+                }
             }
         }
         return n_asym;
     }
 
-    
+
     static W aggregate_min (W w, W x) { return std::min(w, x); }
     static W aggregate_sum (W w, W x) { return w + x; }
-    
+
     mgraph simple(std::function<W(W,W)> aggr = aggregate_min) const {
         mgraph g = reverse().reverse(); // sort adjacencies
         std::vector<edge> edg;
@@ -231,7 +231,7 @@ public:
                 vtx_sub.push_back(use_vtx ? vtx[u] : u);
             }
         }
-        
+
         std::vector<edge> edg;
         for (V u = 0; u < n_; ++u) {
             if (is_in(u)) {
@@ -247,7 +247,7 @@ public:
         return std::make_pair(mgraph(n_sub, edg), vtx_sub);
     }
 
-    
+
     //  --------------------- iterators : -----------------------
     //
     // for (V u : g)
@@ -261,7 +261,7 @@ public:
     const mgraph& nodes() const { return *this; }
     range_rev<V> nodes_rev() const { return range_rev<V>(n_, 0); }
 
-    
+
     class neighborhood {
         const mgraph &g;
         const V u;
@@ -329,8 +329,8 @@ public:
     };
 
     edge_set edges() const { return edge_set(*this); }
-    
-    
+
+
 private:
 
     void init_from_edges(V n, const std::vector<edge> &edg) {
@@ -348,7 +348,7 @@ private:
         for (V u = 1; u <= n_; ++u) {
             sdeg[u] += sdeg[u-1];
         }
-        
+
         // adjacencies:
         adj.resize(m_);
         for (size_t i = m_; i > 0; ) {
@@ -361,14 +361,14 @@ private:
         }
     }
 
-    
+
 }; // mgraph
 
 
 namespace unit {
 
     typedef mgraph<int, int> graph;
-    
+
     void mgraph_test(int n, int deg) {
         std::vector<graph::edge> edg;
         for (int u = 0; u < n; ++u) {
@@ -437,9 +437,9 @@ namespace unit {
                 assert(g.has_edge(vtx[u], vtx[v]));
         }
     }
-    
+
 }
-    
+
 
 
 #endif // MGRAPH_HH

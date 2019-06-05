@@ -53,7 +53,7 @@ public:
     std::vector<std::vector<std::vector<std::pair<T,T> > > > trips_of; // trips of a route : arrival/departure times at each stop
     graph transfers, inhubs, rev_inhubs, outhubs, lowerboundgraph; // weight sorted
     graph rev_transfers_id, rev_inhubs_id, outhubs_id; // auxiliary graphs
-    
+
     std::map<id, ST> id_to_station, id_to_hub;
 
 public:
@@ -185,7 +185,7 @@ public:
             T dt = 0;
             for (auto e : inhubs[u]) { assert(dt <= e.wgt); dt = e.wgt; }
         }
-        
+
         // lower-bound graph
         if (walkingfile != "") {
             size_t n_lb = n_h;
@@ -395,7 +395,7 @@ private:
                   << n_r <<" routes ("<< n_overpass <<" for overpasses)\n";
 
         //for (ST u = 0; u < n_st; ++u) std::cout << station_id[u] <<"\n";
-        
+
         n_overpass = 0;
         for(R rte = 0; rte < n_r; ++rte) {
             std::sort(trips_of[rte].begin(), trips_of[rte].end(),
@@ -473,7 +473,7 @@ private:
                 id_to_station[from] = st_from;
             } else { st_from = id_to_station[from]; }
             if (id_to_station.find(to) == id_to_station.end()) {
-                st_to = n_st + n_tr++;                
+                st_to = n_st + n_tr++;
                 station_id.push_back(to);
                 id_to_station[to] = st_to;
             } else { st_to = id_to_station[to]; }
@@ -510,14 +510,14 @@ private:
 
     }
 
-    
+
     void build_auxiliary_graphs() {
-        size_t asym = transfers.asymmetry(false); 
+        size_t asym = transfers.asymmetry(false);
         std::cerr << transfers.m() <<" transfers: "
                   << asym << " reverse links miss, "
                   << transfers.asymmetry(true) <<" reverse weights differ\n";
         std::cerr <<"  avg degree "<< (1.0*transfers.m()/transfers.n())
-                  <<", max degree "<< transfers.max_degree() <<"\n"; 
+                  <<", max degree "<< transfers.max_degree() <<"\n";
 
         // transitive closure of transfer graph:
         std::vector<graph::edge> transf;
@@ -536,12 +536,12 @@ private:
             }
         }
         transfers.set_edges(transf, n_st);
-        asym = transfers.asymmetry(false); 
+        asym = transfers.asymmetry(false);
         std::cerr << transfers.m() <<" transitive transfers: "
                   << asym << " reverse links miss, "
                   << transfers.asymmetry(true) <<" reverse weights differ\n";
         std::cerr <<"  avg degree "<< (1.0*transfers.m()/transfers.n())
-                  <<", max degree "<< transfers.max_degree() <<"\n"; 
+                  <<", max degree "<< transfers.max_degree() <<"\n";
         assert(asym <= 100); // strange network otherwise
 
         rev_transfers_id = transfers.reverse(); // sort by ID
@@ -554,10 +554,10 @@ private:
 
             rev_inhubs = rev_inhubs_id;
             rev_inhubs.sort_neighbors_by_weight();
-            
+
             // Check hub distances vs transfers
             outhubs_id = outhubs.reverse().reverse(); // ID sorted
-            
+
             for (auto u : transfers) {
                 for (auto e : transfers[u]) {
                     T t = walking_time(u, e.dst);
@@ -569,13 +569,13 @@ private:
         }
 
 
-        // ---------------- lower bound graph ---------------------        
+        // ---------------- lower bound graph ---------------------
         //pll_lb(tt.lowerboundgraph)
         //pll_lb.print_stats(std::cerr);
     }
 
 public:
-    
+
     T walking_time(ST u, ST v) const {
         assert(u < n_st && v < n_st);
         auto uh = outhubs_id[u].begin();
@@ -594,7 +594,7 @@ public:
         }
         return t;
     }
-    
+
     std::string walking_time_str(ST u, ST v) const {
         T t = t_max;
         ST best_hub = -1;
@@ -622,7 +622,7 @@ public:
         if (t == t_max) return std::string("infinity");
         return std::to_string(t) + " (hub=" + std::to_string(best_hub) +")";
     }
-    
+
 
     void check() {
         assert(station_stops.size() == n_st);
@@ -655,7 +655,7 @@ public:
         }
     }
 
-    
+
     static std::set<id> services_at(std::string day, std::string date,
                                     std::string calendar,
                                     std::string calendar_dates) {
@@ -763,7 +763,7 @@ public:
         int h = std::stoi(v[0]), m = std::stoi(v[1]), s = std::stoi(v[2]);
         return h * 3600 + m * 60 + s;
     }
-    
+
 public:
 
     static T decimeters_to_seconds(const int d) {

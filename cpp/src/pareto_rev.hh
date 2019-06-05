@@ -8,7 +8,7 @@
 #include <utility>
 
 /**
- * 2D Pareto set in a sorted vector in reverse order, i.e. the points 
+ * 2D Pareto set in a sorted vector in reverse order, i.e. the points
  * still form an increasing curve, but are read in decreasing order of x coord:
  * while scanning the vector, x decreases  while y increases.
  *
@@ -32,7 +32,7 @@ public:
         }
         point(const point &p) : x(p.x), y(p.y) {}
     };
-    
+
     std::vector<point> pts;
     typename std::vector<point>::const_reverse_iterator last_bellow;
 
@@ -85,7 +85,7 @@ public:
             if (p->x <= x && p->y <= y) return false; // dominated
             if (p->x < x) continue;
             // x <= p->x
-            if (y <= p->y) {// *p is dom (y < p->y if x == p->x as x,y not dom) 
+            if (y <= p->y) {// *p is dom (y < p->y if x == p->x as x,y not dom)
                 if ( ! insert) {
                     std::swap(*p, tmp);
                     insert = true;
@@ -206,9 +206,9 @@ namespace unit {
         ps.check();
         for (auto p : dom) assert(ps.dominates(p.x, p.y));
     }
-    
+
 }
-    
+
 
 
 #endif // PARETO_REV_HH

@@ -22,7 +22,7 @@ private:
     typedef typename G::weight W;
     typedef traversal<G, WL, max_weight, zero_weight> trav_G;
     typedef std::pair<int,int> tree_index;
-    
+
     std::vector<G> trees;
     std::vector<std::vector<V> > trees_vtx;
     std::vector<const std::vector<bool>* > trees_sel;
@@ -39,7 +39,7 @@ private:
         assert(n_labs[u] != 0 && n_labs[v] != 0);
         return n_pairs[u] * n_labs[v] > n_pairs[v] * n_labs[u];
     }
-    
+
 public:
     tree_sampling(int n, int boost_sel = 1) : trees(), trees_vtx(), trees_sel(),
                            in_trees(n), n_subtree(n), n_labs(n), n_pairs(n),
@@ -134,7 +134,7 @@ public:
             }, vtx);
         tr = sub.first;
         vtx = sub.second;
-        
+
         trees.push_back(tr);
         trees_vtx.push_back(vtx);
         assert(trees.size() == trees_vtx.size());
@@ -175,7 +175,7 @@ public:
         }
         return count;
     }
-            
+
     int dfs_count(G &tree, std::vector<V> &vtx, int i) {
         int count = 0;
         if (vtx[i] != G::not_vertex) {

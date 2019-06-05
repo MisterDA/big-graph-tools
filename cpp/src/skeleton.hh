@@ -39,7 +39,7 @@ public:
     static WL traversal_metric (V u, V v, W w) { return w; }
     static WL log_metric (V u, V v, W w) { return std::log(1 + 2*w); }
     static WL hop_count_metric (V u, V v, W w) { return 1; }
-    
+
     void of_traversal (const T &trav,
                        WL alpha_p = 1, WL alpha_q = 2, // alpha = 1/2
                        std::function<WL(V, V, W)> edge_metr
@@ -81,7 +81,7 @@ public:
                return (dist_par(u) + dist_furth(u)) * alpha_q
                > alpha_p * dist_[trav.parent(u)]; */
             return dist_[furthest_[u]] * alpha_q
-            > (alpha_q + alpha_p) * dist_[trav.parent(u)]; 
+            > (alpha_q + alpha_p) * dist_[trav.parent(u)];
         };
         // root is in the skeleton:
         V r = trav.visit(0);

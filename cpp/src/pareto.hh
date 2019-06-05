@@ -31,9 +31,9 @@ public:
         }
         point(const point &p) : x(p.x), y(p.y) {}
     };
-    
+
     std::vector<point> pts;
-    
+
 
     pareto(size_t cap=48) { pts.reserve(cap); }
 
@@ -78,7 +78,7 @@ public:
             if (p->x <= x && p->y <= y) return false; // dominated
             if (p->x < x) continue;
             // x <= p->x
-            if (y <= p->y) {// *p is dom (y < p->y if x == p->x as x,y not dom) 
+            if (y <= p->y) {// *p is dom (y < p->y if x == p->x as x,y not dom)
                 ++n_dom;
                 if ( ! insert) {
                     std::swap(*p, tmp);
@@ -193,9 +193,9 @@ namespace unit {
         ps.check();
         for (auto p : dom) assert(ps.dominates(p.x, p.y));
     }
-    
+
 }
-    
+
 
 
 #endif // PARETO_HH

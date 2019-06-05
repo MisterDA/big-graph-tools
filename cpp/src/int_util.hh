@@ -19,7 +19,7 @@ template<typename I>
 class range {
     const I from, to;
 public:
-    range(I from, I to) : from(from), to(to) {} 
+    range(I from, I to) : from(from), to(to) {}
     int_iterator<I> begin() const { return int_iterator<I>(from); }
     int_iterator<I> end() const { return int_iterator<I>(to); }
 };
@@ -36,5 +36,5 @@ public:
 typedef range<int> irange;
 typedef range_rev<int> irange_rev;
 
-    
+
 #endif // INT_UTIL_HH

@@ -58,12 +58,12 @@ int main (int argc, char **argv) {
     for (int u : g) {
         for (auto const e : g[u]) {
             sum += e.wgt;
-            if (e.wgt < min) min = e.wgt; 
-            if (e.wgt > max) max = e.wgt; 
+            if (e.wgt < min) min = e.wgt;
+            if (e.wgt > max) max = e.wgt;
         }
     }
     std::cerr << "sum edge weights = " << sum
-              << ", min = " << min <<", max = "<< max 
+              << ", min = " << min <<", max = "<< max
               <<  std::endl;
     t = top (t, "graph");
 
@@ -71,7 +71,7 @@ int main (int argc, char **argv) {
     traversal<graph> trav(n);
     t = top(t, "trav");
     if (argc == 3) {
-        std::srand(std::time(0)); 
+        std::srand(std::time(0));
         int ntests = std::stoi(argv[2]);
         size_t sum = 0;
         for (int i = 0; i < ntests; ++i) {
@@ -127,7 +127,7 @@ int main (int argc, char **argv) {
     std::cerr << trav.nvis() <<" nodes visited\n";
     std::cerr << "dist to "<< v <<" = "<< trav.dist(v) <<  std::endl;
     t = top (t, "several sources dijkstra");
-    
+
     // ------------------------ skeleton ---------------------------
     skeleton<traversal<graph> > sk(n);
     sk.of_traversal(trav, 1, 2 /* alpha = 1/2 */,
@@ -148,7 +148,7 @@ int main (int argc, char **argv) {
               << ", skel. size = " << sk.size()
               <<  std::endl;
     t = top (t, "skeleton");
-    
+
     // ------------------------- pruned ll -----------------------
     /*{
     std::vector<int> perm(n);
@@ -167,13 +167,13 @@ int main (int argc, char **argv) {
     std::cerr <<"  avg dist: "<< sd / 1000 / 1000 << std::endl;
     t = top (t, "pruned ll 1M req dist");
     }*/
-    
-    
+
+
     // -------------------------- largest scc ----------------------
     trav.strongly_connected_components(g);
     int largest_scc = trav.scc_largest();
     t = top(t, "scc");
-    
+
     // ------------------------- hub labeling -----------------------
     std::vector<int> sel, sel_scc;
     if (argc == 3) {
@@ -238,7 +238,7 @@ int main (int argc, char **argv) {
     std::cerr <<"  max dist: "<< sd << std::endl;
     t = top (t, "hlr 1M req dist");
     */
-    
+
     exit(0);
 
 }

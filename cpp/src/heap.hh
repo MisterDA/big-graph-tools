@@ -6,7 +6,7 @@
 #include <vector>
 #include <iostream>
 
-/** Priority queue for ints in 0..n-1 through a heap. 
+/** Priority queue for ints in 0..n-1 through a heap.
  *  Smallest element according to [cmp_less] is popped first. */
 
 
@@ -16,7 +16,7 @@ class heap {
 private:
     std::function<bool(const int &, const int &)> cmp_less;
     std::vector<int> elts, pos;
-    
+
 public:
     heap(std::function<bool(const int &, const int &)> cmp, int n = 0)
         : cmp_less(cmp), elts(), pos(n, not_pos) {
@@ -33,10 +33,10 @@ public:
     void set_compare(std::function<bool(const int &, const int &)> cmp) {
         cmp_less = cmp;
     }
-    
+
     /** Push or update an element: if the [e]th element was not in the queue,
      *  add it, otherwise consider its order position according to [cmp_less]
-     *  has been updated. */ 
+     *  has been updated. */
     void push(int e) {
         if (pos[e] == not_pos) {
             pos[e] = elts.size();
@@ -113,7 +113,7 @@ private:
 };
 
 namespace unit {
-    
+
     void heap_test(int n, int rnd = 1000) {
         std::cerr <<"heap_test:";
         std::vector<int> key(n);
