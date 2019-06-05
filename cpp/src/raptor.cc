@@ -93,8 +93,8 @@ int main (int argc, char **argv) {
             dir+"trips.txt", dir+"stop_times.txt", dir+"transfers.txt", true};
     */
     timetable ttbl{dir+"stop_times.csv.gz",
-            dir+"in_hubs.gr.gz", dir+"out_hubs.gr.gz",
-            dir+"transfers.csv.gz", true};
+                   dir+"in_hubs.gr.gz", dir+"out_hubs.gr.gz",
+                   dir+"transfers.csv.gz", true};
     //dir+"walking_and_transfers.gr", t_from, t_to};
     std::cerr << ttbl.n_r <<" routes, "<< ttbl.n_st <<" sations, "
               << ttbl.n_s <<" stops\n";
