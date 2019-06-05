@@ -65,11 +65,11 @@ public:
     raptor(const timetable &tt)
         : ttbl(tt),
           st_eat(tt.n_h+1), // a dummy dst for one to all queries
-          n_trips(tt.n_h), stop_prev_dep(tt.n_s),
-          all_pareto(tt.n_h), incr_pareto(tt.n_h),
-          tmp_pareto(tt.n_s), dst_pareto(ntrips_max + 1),
+          stop_prev_dep(tt.n_s), all_pareto(tt.n_h), incr_pareto(tt.n_h),
+          tmp_pareto(tt.n_s), prev_dep_pareto(tt.n_s),
+          dst_pareto(ntrips_max + 1),
           dst_pareto_kmax(0),
-          prev_dep_pareto(tt.n_s),
+          n_trips(tt.n_h),
           station_has_improved(tt.n_st, false),
           hub_has_improved(tt.n_h, false),
           stop_has_improved(tt.n_s, false),
@@ -684,10 +684,10 @@ public:
 
         assert(k_max <= ntrips_max);
 
-        for (int i = 0; i < ttbl.n_h; ++i) { all_pareto[i].clear(); }
-        for (int i = 0; i < ttbl.n_st; ++i) { incr_pareto[i].clear(); }
-        for (int i = 0; i < ttbl.n_s; ++i) { tmp_pareto[i].clear(); }
-        for (int i = 0; i < ttbl.n_s; ++i) { prev_dep_pareto[i].clear(); }
+        for (size_t i = 0; i < ttbl.n_h; ++i) { all_pareto[i].clear(); }
+        for (size_t i = 0; i < ttbl.n_st; ++i) { incr_pareto[i].clear(); }
+        for (size_t i = 0; i < ttbl.n_s; ++i) { tmp_pareto[i].clear(); }
+        for (size_t i = 0; i < ttbl.n_s; ++i) { prev_dep_pareto[i].clear(); }
         for (int i = 0; i <= k_max; ++i) { dst_pareto[i].clear(); }
         dst_pareto_kmax = 0;
 
@@ -703,8 +703,7 @@ public:
         };
 
         auto reach_station_walk =
-            [this, dst, t_dep, min_chg_time](ST st, T t, T w,
-                                             bool self_walk=false){
+            [this, dst](ST st, T t, T w, bool self_walk=false) {
             if ((! all_pareto[dst].dominates(t, w)) // target prun
                 && (self_walk || all_pareto[st].add(t, w))) {
                 for (S u : ttbl.station_stops.at(st)) {

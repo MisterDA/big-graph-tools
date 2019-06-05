@@ -52,9 +52,8 @@ private:
 
 public:
     connection_scan(const timetable &tt)
-        : ttbl(tt), n_tr(0),
+        : ttbl(tt), all_pareto(tt.n_h), n_tr(0),
           st_eat(tt.n_h), h_eat(tt.n_h), wlk_dst(tt.n_h),
-          all_pareto(tt.n_h),
           n_trips(tt.n_h), eat_trip(tt.n_h)
     {
         parent.reserve(ntrips_max + 1);
@@ -98,7 +97,7 @@ public:
         }
 
         std::sort(conn.begin(), conn.end(),
-                  [&tt](const connection &c, const connection &d) {
+                  [](const connection &c, const connection &d) {
                       if (c.dep == d.dep) {
                           if (c.arr == d.arr) {
                               // Be careful to 0 delay connections:
@@ -711,5 +710,6 @@ public:
     }
 };
 
+const int connection_scan::ntrips_max, connection_scan::not_trip_index;
 
 #endif // CONNECTION_SCAN_HH
