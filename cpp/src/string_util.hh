@@ -1,9 +1,10 @@
 #ifndef STRING_UTIL_HH
 #define STRING_UTIL_HH
 
-#include "string.h"
+#include <cstring>
 #include <iostream>
-
+#include <vector>
+#include <algorithm>
 
 // trim from right
 static std::string rtrim(std::string s) {

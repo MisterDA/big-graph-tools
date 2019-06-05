@@ -56,12 +56,11 @@ public:
 
     // Handle graphs with vertices in [0..n-1].
     traversal (int n)
-        : dist_(n, max_weight),
+        : visit_(n), visited_(n, false), in_scc_stack_(n, false),
+          visited_at_(n, n), lowlink_(n, n), visit_end_(n, n),
+          parent_(n, n), dist_(n, max_weight), tree_ecc_(n, zero_weight),
           queue_([this](V u, V v){ return dist_[u] < dist_[v]; }, n),
-          visit_(n), visited_(n, false), visited_at_(n, n),
-          size_(n, 0), parent_(n, n), n_(n), nvis_(0),
-          in_scc_stack_(n, false), lowlink_(n, n), visit_end_(n, n),
-          tree_ecc_(n, zero_weight)
+          size_(n, 0),  n_(n), nvis_(0)
     {
         q_vec_.reserve(n_);
     }
@@ -152,7 +151,6 @@ public:
 
 
     void clear(WL dft_wgt = max_weight, int n = 0) {
-        int up_to = std::max(n, nvis_);
         for (int i = 0; i < nvis_; ++i)  {
             V u = visit_[i];
             visit_[i] = not_vertex;
@@ -292,7 +290,6 @@ public:
     }
 
     void clear_a_star(const G &g, WL dft_wgt = max_weight, int n = 0) {
-        int up_to = std::max(n, nvis_);
         for (int i = 0; i < nvis_; ++i)  {
             V u = visit_[i];
             visit_[i] = not_vertex;

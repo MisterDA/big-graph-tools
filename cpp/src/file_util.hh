@@ -1,12 +1,13 @@
 #ifndef FILE_UTIL_HH
 #define FILE_UTIL_HH
 
-#include "string.h"
+#include <cstring>
+#include <cassert>
 #include <iostream>
-
+#include <vector>
+#include <string>
 #include <zlib.h>
 #include "string_util.hh"
-
 
 class file_or_gz {
 private:
@@ -19,12 +20,15 @@ public:
     file_or_gz(std::string filename, size_t mls=10000) : max_line_size(mls) {
         gzipped = filename.size() > 3
             && filename.substr(filename.size() - 3) == ".gz";
-        if(gzipped) {
+        if (gzipped) {
             gz_in = gzopen(filename.c_str(), "r");
         } else {
             in = filename != "-" ? fopen(filename.c_str(), "r") : stdin;
         }
-        assert(gzipped ? gz_in  != nullptr : in  != nullptr);
+        if (gzipped ? gz_in == nullptr : in  == nullptr) {
+            perror(filename.c_str());
+            exit(EXIT_FAILURE);
+        }
         line = new char[max_line_size];
     }
 

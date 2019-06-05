@@ -81,7 +81,6 @@ private:
     bool move_up(int i) {
         assert(i >= 0 && i < elts.size());
         int p = (i+1)/2 - 1; // parent
-        int ui, up;
         bool goes_up = false;
         while (p >= 0 && cmp_less(elts[i], elts[p])) {
             goes_up = true;
@@ -119,7 +118,6 @@ namespace unit {
         std::vector<int> key(n);
         for (int i = 0; i < n; ++i) { key[i] = rand() % rnd; }
         auto cmp = [&key](int i, int j) -> bool { return key[i] < key[j]; };
-        auto get = [&key](int i) -> int { return key[i]; };
         heap h(cmp, n);
         for (int i = 0; i < n; ++i) {
             if (i % 5 == 3) {
