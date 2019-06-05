@@ -25,7 +25,7 @@ void usage_exit (char **argv) {
         }
         return acc;
     };
-    
+
     std::cerr <<"Usage: "<< argv[0] <<" [command] [graph] [OPT [subset]]\n"
               << paragraph (
         "Computes a hub labeling of the graph G in file [graph] and "
@@ -100,7 +100,7 @@ int main (int argc, char **argv) {
     main_log.cerr(t)
         << "loaded graph with n=" << n << " nodes, m=" << m <<" edges\n";
     t = main_log.lap();
-    
+
     // ------------------------- load subset -----------------------
     std::vector<int> sel;
     if (argc > 3) {
@@ -118,13 +118,13 @@ int main (int argc, char **argv) {
         for (int u = 0; u < n; ++u) {
             sel.push_back(u);
         }
-    } 
+    }
     std::vector<bool> is_sel(n, false);
     for (int v : sel) { is_sel[v] = true; }
     int n_sel = sel.size();
     main_log.cerr(t) << "loaded subset of "<< n_sel <<" nodes\n";
     t = main_log.lap();
-    
+
     // ------------------------- hub labeling -----------------------
     pl_lab hl(g);
     hl.print_stats(std::cerr, is_sel, is_sel);
@@ -172,7 +172,7 @@ int main (int argc, char **argv) {
             }
         }
     } else if (cmd == "hubs") {
-        std::vector<pl_lab::edgeL> edg; 
+        std::vector<pl_lab::edgeL> edg;
         edg = hl.in_hub_edges(is_sel, is_sel);
         for (const pl_lab::edgeL &e : edg) {
             std::cout <<"i "<< lab[e.wgt.hub]
@@ -185,7 +185,7 @@ int main (int argc, char **argv) {
         }
     } else if (cmd == "hubs-next-hop") {
         assert(sel.size() == n); // Makes sense if next hops are also selected.
-        std::vector<pl_lab::edgeL> edg; 
+        std::vector<pl_lab::edgeL> edg;
         edg = hl.in_hub_edges(is_sel, is_sel);
         for (const pl_lab::edgeL &e : edg) {
             std::cout <<"i "<< lab[e.wgt.hub] <<" "<< lab[e.wgt.next_hop]
@@ -265,7 +265,7 @@ int main (int argc, char **argv) {
                                 if (f.wgt.dist < INT64_MAX) {
                                     int j = sel_inv[f.dst];
                                     int64_t d_ij = e.wgt.dist + f.wgt.dist;
-                                    if (d_ij < mat[i][j]) mat[i][j] = d_ij; 
+                                    if (d_ij < mat[i][j]) mat[i][j] = d_ij;
                                 }
                             }
                         }
@@ -283,7 +283,7 @@ int main (int argc, char **argv) {
     } else {
         usage_exit(argv);
     }
-    
+
     main_log.cerr() << "end\n";
     exit(0);
 }

@@ -12,7 +12,7 @@ class vertex {
 private:
     I i;
 public:
-    typedef I 
+    typedef I
 
 } // vertex
 

@@ -14,7 +14,7 @@ private:
     union { FILE *in; gzFile gz_in; };
     char *line;
     const size_t max_line_size;
-    
+
 public:
     file_or_gz(std::string filename, size_t mls=10000) : max_line_size(mls) {
         gzipped = filename.size() > 3
@@ -66,7 +66,7 @@ read_tuples(const std::string filename, const size_t ncols) {
     }
     return rows;
 }
-    
+
 static std::vector<std::vector<std::string> >
 read_csv(const std::string filename, const size_t ncol, ...) { // ... = column names
     std::vector<std::vector<std::string> > rows;
@@ -110,7 +110,7 @@ read_csv(const std::string filename, const size_t ncol, ...) { // ... = column n
         }
     }
     in.close();
-        
+
     return rows;
 }
 

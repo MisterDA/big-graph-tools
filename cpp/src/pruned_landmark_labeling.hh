@@ -32,7 +32,7 @@ public:
 private:
     typedef typename G::weight W;
     typedef typename edge::src_dst_wgt<V, W> edge;
-    
+
     struct label_t {
         std::vector<V> out_v; // out hubs
         std::vector<WL> out_d;   // dist to them
@@ -50,7 +50,7 @@ private:
         assert(0 == posix_memalign(&ptr, 64, bytes));
         return ptr;
     }
-    
+
     int n_; // number of nodes
     std::vector<V> ranked_hubs;
     std::vector<label_t> index_;
@@ -66,7 +66,7 @@ public:
                              int boost_sel = 1,
                              bool weighted = true) {
         logging hl_log("- hl -");
-        
+
         init_index(g.n());
         tree_sampling<G,WL,max_weight,zero_weight> tsampl(n_, boost_sel);
 
@@ -107,7 +107,7 @@ public:
         for (V i = sel_to.size() - 1; i > n_to; --i) {
             std::swap(sel_to[i], sel_to[n_to + (rand() % (i+1-n_to))]);
         }
-        
+
         // sample size:
         const int64_t const_log_n = 4; // 2->10 ==> max lab -= 20%, 2->1 => +20%
         int64_t n = n_, log_n = 0;
@@ -118,7 +118,7 @@ public:
         G g_rev = g.reverse();
         trav_G trav(n_);
         std::vector<bool> is_hub(n_, false);
- 
+
         for (V i_from = 0, i_to = 0;
              i_from < sel_from.size() || i_to < sel_to.size()
                  || ! tsampl.queue_empty()  ; ) {
@@ -178,7 +178,7 @@ public:
             ++i_hub;
             //progress(i_hub);
             if (hl_log.progress()) {
-                hl_log.cerr() <<"hub "<< i_hub 
+                hl_log.cerr() <<"hub "<< i_hub
                               <<" : avg_nvis="<< (sum_nvis / (2*(i_hub+1)))
                               <<" lst_nvis="<< (last_nvis / 2 /(i_hub - last_r))
                     //<<" n=" << n_ <<" "
@@ -231,7 +231,7 @@ public:
         //__mm_prefetch(&(lab_v.in_v[0], _MM_HINT_T0));
 
         int iu_opt = -1, iv_opt = -1;
-        
+
         for (int iu = 0, iv = 0 ; ; ) {
             V xu = lab_u.out_v[iu], xv = lab_v.in_v[iv];
             if (xu == xv) { // common hub
@@ -342,7 +342,7 @@ public:
                              const std::vector<V> &sel_to) {
         n_ = pll.n_;
         index_ = std::vector<label_t>(n_);
-        
+
         std::vector<bool> keep(n_, false);
         for (V u : sel_from) {
             int lab_len = pll.index_[u].out_v.size(), new_len = 1;
@@ -363,7 +363,7 @@ public:
             lab_u.out_v.push_back(n_);
             lab_u.out_d.push_back(max_weight);
         }
-        
+
         for (V u : sel_to) {
             int lab_len = pll.index_[u].in_v.size(), new_len = 1;
             for (V v : sel_from) {
@@ -385,7 +385,7 @@ public:
         }
     }
 
-    
+
     void restrict(const std::vector<V> &sel_from,
                   const std::vector<V> &sel_to) {
         std::vector<bool> keep(n_, false);
@@ -411,7 +411,7 @@ public:
             std::swap(lab_u.out_v, out_v);
             std::swap(lab_u.out_d, out_d);
         }
-        
+
         for (V u : sel_to) {
             int lab_len = index_[u].in_v.size(), new_len = 1;
             for (V v : sel_from) {
@@ -433,7 +433,7 @@ public:
             std::swap(lab_u.in_v, in_v);
             std::swap(lab_u.in_d, in_d);
         }
-    }    
+    }
 
 
     void init_index(int n) {
@@ -479,7 +479,7 @@ public:
             }
         }
     }
-    
+
     void backward(const G &g_rev, V u, trav_G &trav,
                   bool wgted, bool add_hub=false) {
         auto filter = [this, u](V v, WL dv, V prt, WL dprt){
@@ -519,7 +519,7 @@ public:
     }
 
     void incr_i_hub() { ++i_hub; }
-    
+
     void construct_index(const G &g, std::vector<V> rank_order, bool wgted) {
         init_index(g.n());
         assert(n_ == rank_order.size());
@@ -535,7 +535,7 @@ public:
         }
         std::cerr << "\n";
     }
-    
+
 };
 
 #endif //PRUNED_LANDMARK_LABELING_HH

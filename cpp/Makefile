@@ -1,4 +1,4 @@
-RSYNC:=rsync -v -e ssh --inplace -r --relative --exclude '*~' --exclude '\#*' 
+RSYNC:=rsync -v -e ssh --inplace -r --relative --exclude '*~' --exclude '\#*'
 CLUST:=rioc.inria.fr
 CLUST_DIR:=graph/cpp
 
@@ -145,7 +145,7 @@ alleatpar:
 		make $${dir}/$*; \
 	done
 
-%.raptor: hostinfo raptor.o 
+%.raptor: hostinfo raptor.o
 	make $*
 
 .PHONY: hostinfo
@@ -261,17 +261,17 @@ split: table.force
 %-rank.csv: %-unif.csv
 	$(eval DIR:=`dirname $<`)
 	$(eval QRY:=`basename $<`)
-	./raptor.o $(DIR) -exit -query-file=$(QRY) -nq=100 -rank -all-ranks > $@ 
+	./raptor.o $(DIR) -exit -query-file=$(QRY) -nq=100 -rank -all-ranks > $@
 
 %-rank-long.csv: %-unif.csv
 	$(eval DIR:=`dirname $<`)
 	$(eval QRY:=`basename $<`)
-	./raptor.o $(DIR) -exit -query-file=$(QRY) -nq=1000 -rank -all-ranks > $@ 
+	./raptor.o $(DIR) -exit -query-file=$(QRY) -nq=1000 -rank -all-ranks > $@
 
 %-unif.csv: #%.csv
 	$(eval DIR:=`dirname $<`)
 	$(eval QRY:=`basename $<`)
-	./raptor.o $(DIR) -exit -query-file=$(QRY) -nq=1000 -rerank > $@ 
+	./raptor.o $(DIR) -exit -query-file=$(QRY) -nq=1000 -rerank > $@
 
 
 %/queries-loc10pct.csv: %/arrival_times.csv
@@ -434,5 +434,5 @@ define MAC
 endef
 export MAC
 mac:
-	echo "$$MAC" 
+	echo "$$MAC"
 

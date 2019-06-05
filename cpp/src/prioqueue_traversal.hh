@@ -27,7 +27,7 @@
 enum dfs_option { NONE = 0, SCC = 1, CHECK_DAG = 2 };
 
 template<typename G,  // Graph type with G::vertex = int
-         typename WL = int64_t, // long weight for summing weights, 
+         typename WL = int64_t, // long weight for summing weights,
                      // with appropriate casting for the following constants:
          int64_t max_weight = INT64_MAX, int64_t zero_weight = 0>
 class traversal {
@@ -37,7 +37,7 @@ public:
     typedef WL long_weight;
 private:
     typedef edge::dst_wgt<V,WL> wl_head;
-    
+
     static inline bool wl_head_further (const wl_head &u, const wl_head &v) {
         return u.wgt > v.wgt;
     }
@@ -52,13 +52,13 @@ private:
     std::vector<bool> visited_, in_scc_stack_;
     std::vector<int> visited_at_;
     std::vector<int> lowlink_, visit_end_; // for DFS
-    std::vector<V> parent_; 
+    std::vector<V> parent_;
     std::vector<WL> dist_, tree_ecc_; // for Dijkstra and BFS
-    
+
     std::vector<int> size_; // for tree centroid, and component sizes
-    
+
     int n_, nvis_;
-    
+
 public:
 
     const V not_vertex = G::not_vertex;
@@ -88,7 +88,7 @@ public:
     V last_visited () const { return visit_[nvis_ - 1]; }
 
     typedef typename G::edge edge;
-    
+
     G graph() const {
         int n = nvis_;
         std::vector<edge> edg;
@@ -146,9 +146,9 @@ public:
         return nds;
     }
 
-    
+
     typedef std::unordered_map<V,int> index;
-    
+
     index digraph_index() const {
         index idx;
         for (int i = 0; i < nvis_; ++i) {
@@ -180,7 +180,7 @@ public:
     }
 
     static bool visit_all(V v, WL d, V p, WL dp) { return true; }
-    
+
     // returns number of visited nodes
     int bfs(const G &g, V s,
             std::function<bool(V, WL, V, WL)> filtr
@@ -231,7 +231,7 @@ public:
             parent_[s] = s;
             queue_.push(wl_head(s, zero_weight));
         }
-            
+
         while ( ! queue_.empty()) {
             const wl_head &u_du = queue_.top();
             WL du = u_du.wgt;
@@ -328,12 +328,12 @@ public:
             V u = q_v_[--tail];
             /* lowlink_[u] (see Tarjan alg. for strongly connected components)
              * is the smallest visit number of a node accessible from u through
-             * a sequence of forward edges plus eventually one backward edge. 
+             * a sequence of forward edges plus eventually one backward edge.
              * Here we consider more paths, possibly with several backward
              * edges; the important point is that all paths considered by
              * Tarjan algorithm are considered here, and the first node visited
-             * in a strongly connected component (scc) will thus be the only 
-             * node of the component that has its own visit  number as lowlink 
+             * in a strongly connected component (scc) will thus be the only
+             * node of the component that has its own visit  number as lowlink
              * here also. (Not storing the visit number of nodes allows to
              * avoid allocating one more array).
              */
@@ -347,11 +347,11 @@ public:
                     scc_stack_.push_back(u);
                     in_scc_stack_[u] = true;
                 }
-                
+
                 // add u to stack for detecting end of visit when popped again
                 if (tail >= q_v_.size()) q_v_.push_back(not_vertex);
                 q_v_[tail++] = u;
-                
+
                 for (V v : g[u]) {
                     if ( ! visited_[v]) {
                         // possible forward edge
@@ -439,7 +439,7 @@ public:
         assert(i < nvis_);
         return visit_[i];
     }
-    
+
     // Returns a topological ordering [ord] of [g]
     // such that for all edge [uv] of [g], [u] appears before [v] in [ord].
     std::vector<int> topological_ordering (G &g) {
@@ -457,10 +457,10 @@ public:
     }
 
 
-    
+
     /** The following functions assume that WL is an int type. */
-    
-    // returns number of visited nodes, assumes 
+
+    // returns number of visited nodes, assumes
     int max_card_search (const G &g, V s,
                  std::function<bool(V, V)> filtr
                  = [](V v, V p) { return true; }) {
@@ -537,7 +537,7 @@ public:
         return r;
     }
 
-    
+
 
 }; // traversal
 

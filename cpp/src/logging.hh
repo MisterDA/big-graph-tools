@@ -44,15 +44,15 @@ private:
         gettimeofday(&tv, NULL);
         return tv.tv_sec + tv.tv_usec * 1e-6;
     }
-    
+
     std::atomic<double> t_now;
     std::atomic<long long int> mem_now;
     double t_end;
     std::thread update_now;
-    
+
     double t_init, t_last, t_prog;
     std::string prefix;
-    
+
 public:
     logging(std::string pref = "") : prefix(pref) {
         t_now = time_s();
@@ -66,7 +66,7 @@ public:
                     mem_now.store(mem_usage_kb(), std::memory_order_release);
                 }
             });
-        
+
         t_init = t_now;
         t_last = 0.;
         t_prog = 1.;

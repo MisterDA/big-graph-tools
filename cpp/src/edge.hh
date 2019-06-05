@@ -38,7 +38,7 @@ namespace edge { // Various edge information.
         src_dst_wgt() {}
     };
 
-    
+
 } // edge
 
 #endif // EDGE_HH
