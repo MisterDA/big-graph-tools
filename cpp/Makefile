@@ -10,7 +10,8 @@ CTRS:=$(wildcard src/*.cc)
 LDLIBS:=-lz
 LDFLAGS:=-rdynamic -lpthread
 CFLAGS:=-std=c++11 -g -pthread -Og -pipe \
-        -Wall -Wno-sign-compare -Wno-unused-variable -Wno-unused-function
+        -Wall -Wextra \
+	-Wno-sign-compare -Wno-unused-parameter -Wno-unused-function
 
 main: raptor.o
 
