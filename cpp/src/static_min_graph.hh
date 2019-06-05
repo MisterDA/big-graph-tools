@@ -144,7 +144,7 @@ public:
             const vertex &v = id_to_vertex(id);
             V station_idx = find_or_add_station(v.station_id, max_index);
             if (!v.is_stop) return station_idx;
-            auto f = [&v](const stop &s) { return s; };
+            auto f = [](const stop &s) { return s; };
             const stop &s = find_or_add_stop(v.station_id, station_idx,
                                        v.route, max_index, f);
             return v.type == vertex::stop_type::arr ? s.arr : s.dep;
