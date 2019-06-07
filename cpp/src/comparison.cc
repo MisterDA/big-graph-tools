@@ -83,12 +83,15 @@ public:
     {
         std::vector<tp> values;
         values.reserve(128);
-        for (std::remove_const<decltype(limit)>::type q = 0; q < limit; ++q) {
+        out << "query,departure,arrival" << std::endl;
+        for (size_t q = 0; q < limit; ++q) {
+            values.clear();
             const auto &query = queries[q];
             V src = mg->id_to_station.at(query[0]),
                 dst = mg->id_to_station.at(query[1]);
             int deptime = std::stoi(query[2]);
-            lambda(timeprofile(src, dst, values, deptime), out);
+            lambda(q, timeprofile(src, dst, values, deptime), out);
+            log("query " + std::to_string(q) + " done.");
         }
     }
 
@@ -101,11 +104,6 @@ public:
     {
         // build the path with the hub labeling
         std::list<V> path = buildpath(src, dst);
-
-        std::cerr << "path: ";
-        for (auto const &v : path)
-            std::cerr << mg->index_to_id[v] << " ";
-        std::cerr << std::endl;
 
         // Retrieve the schedule at each node in the path, following the routes
         const timetable *ttbl = this->ttbl;
@@ -137,24 +135,19 @@ public:
         };
 
         // retrieve the time schedule
-        log("forward retrieve schedule");
         std::vector<stop_schedule> forward, backward;
         std::transform(path.begin(), path.end(), std::back_inserter(forward),
                        retrieve_schedule);
-        log("done.\nbackards retrieve schedule");
         ttbl = this->ttbl_rev;
         std::transform(path.begin(), path.end(), std::back_inserter(backward),
                        retrieve_schedule);
-        log("done");
 
         tp tp = {.tdep = deptime, .tarr = 0};
         while (true) {
             tp.tarr = earliest_arrival_time(forward, tp.tdep);
-            std::cerr << "EAT(" << tp.tdep << ") = " << tp.tarr << std::endl;
             if (tp.tarr == -1)
                 break;
             tp.tdep = -earliest_arrival_time_rev(backward, -tp.tarr);
-            std::cerr << "REAT(" << tp.tarr << ") = " << tp.tdep << std::endl;
             if (tp.tdep == -1)
                 break;
             timeprofiles.push_back(tp);
@@ -340,10 +333,10 @@ private:
 
 namespace {
     void
-    f(const std::vector<comparison::tp> &tps, std::ostream &out) {
-        out << "departure,arrival" << std::endl;
+    f(const size_t query, const std::vector<comparison::tp> &tps,
+      std::ostream &out) {
         for (const auto &tp : tps)
-            out << tp.tdep << "," << tp.tarr << std::endl;
+            out << query << "," << tp.tdep << "," << tp.tarr << std::endl;
     }
 
 };
@@ -380,7 +373,9 @@ main(int argc, const char *argv[])
             mg.graphviz_output(f);
             f.close();
         }
-    } else if (argv[1] == commands[1].first && argc == commands[1].second + 2) {
+    } else if (argv[1] == commands[1].first
+               && (argc == commands[1].second + 1
+                   || argc == commands[1].second + 2)) {
         timetable ttbl(argv[2], argv[3]);
         timetable ttbl_rev(ttbl);
         ttbl_rev.check();
@@ -393,6 +388,7 @@ main(int argc, const char *argv[])
             exit(EXIT_FAILURE);
         }
         static_min_graph<int, int> mg(gr);
+        gr.close();
         log("loaded static_min_graph.");
 
         std::ifstream hl(argv[5]);
@@ -402,6 +398,7 @@ main(int argc, const char *argv[])
         }
         log("loaded hub labeling");
         comparison cmp(mg, ttbl, ttbl_rev, hl);
+        hl.close();
         log("loaded comparison.");
 
         auto queries(read_csv(argv[6], 6, "source","destination",
@@ -411,7 +408,19 @@ main(int argc, const char *argv[])
                    std::min(queries.size(), _limit));
         log("loaded queries.");
 
-        cmp.timeprofiles(f, queries, limit, std::cout);
+        std::ostream *out = &std::cout;
+        if (argc == 8) {
+            out = new std::ofstream((argv[7]));
+            if (out->bad()) {
+                perror(argv[7]);
+                exit(EXIT_FAILURE);
+            }
+        }
+        cmp.timeprofiles(f, queries, limit, *out);
+        if (out != &std::cout) {
+            static_cast<std::ofstream *>(out)->close();
+            delete out;
+        }
     } else {
         usage_exit(argv[0]);
     }
