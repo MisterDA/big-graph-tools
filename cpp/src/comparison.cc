@@ -237,32 +237,24 @@ private:
                           const timetable::T deptime) const
     {
         timetable::T arrtime = deptime;
+        size_t j = 0;
         for (size_t i = 0; i < journey.size() - 1; ++i) {
             const auto &u = journey[i], &v = journey[i+1];
             if (u.type == stop_schedule::dep &&
                 v.type == stop_schedule::arr) {
-                // find the first departure time from u after arrtime
-                bool found(false);
-                for (size_t j = 0; j < u.events->size(); ++j) {
-                    if (arrtime <= (*u.events)[j]) {
-                        arrtime = (*v.events)[j];
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) return -1;
+                auto it = std::lower_bound(u.events->begin() + j,
+                                          u.events->end(), arrtime);
+                if (it == u.events->end())
+                    return -1;
+                arrtime = (*v.events)[it - u.events->begin()];
             } else if (u.type == stop_schedule::arr &&
                        v.type == stop_schedule::dep) {
-                bool found(false);
-                for (size_t j = 0; j < v.events->size(); ++j) {
-                    timetable::T t = (*v.events)[j];
-                    if (arrtime <= t) {
-                        arrtime = t;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) return -1;
+                auto it = std::lower_bound(v.events->begin() + j,
+                                           v.events->end(),
+                                           arrtime);
+                if (it == v.events->end())
+                    return -1;
+                arrtime = *it;
             } else {
                 try {
                     arrtime += mg->edge_weight(u.index, v.index);
@@ -279,37 +271,31 @@ private:
                               const timetable::T arrtime) const
     {
         timetable::T deptime = arrtime;
+        size_t j = 0;
         for (size_t i = journey.size() - 1; i > 0; --i) {
             auto &u = journey[i-1], &v = journey[i];
             if (u.type == stop_schedule::dep &&
                 v.type == stop_schedule::arr) {
                 // find the first departure time from u after arrtime
-                bool found(false);
-                for (size_t j = 0; j < v.events_rev->size(); ++j) {
-                    if (deptime <= (*v.events_rev)[j]) {
-                        deptime = (*u.events_rev)[j];
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) return -1;
+                auto it = std::lower_bound(v.events_rev->begin() + j,
+                                           v.events_rev->end(),
+                                           deptime);
+                if (it == v.events_rev->end())
+                    return 1;
+                deptime = (*u.events_rev)[it - v.events_rev->begin()];
             } else if (u.type == stop_schedule::arr &&
                        v.type == stop_schedule::dep) {
-                bool found(false);
-                for (size_t j = 0; j < v.events_rev->size(); ++j) {
-                    timetable::T t = (*v.events_rev)[j];
-                    if (deptime <= t) {
-                        deptime = (*u.events_rev)[j];;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) return -1;
+                auto it = std::lower_bound(v.events_rev->begin() + j,
+                                           v.events_rev->end(),
+                                           deptime);
+                if (it == v.events_rev->end())
+                    return 1;
+                deptime = (*u.events_rev)[it - v.events_rev->begin()];
             } else {
                 try {
                     deptime += mg->edge_weight(u.index, v.index);
                 } catch (const std::invalid_argument &e) {
-                    return -1;
+                    return 1;
                 }
             }
         }
