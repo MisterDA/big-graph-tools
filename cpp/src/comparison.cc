@@ -114,11 +114,11 @@ public:
         while (true) {
             tp.tarr = earliest_arrival_time(journey, tp.tdep);
             // std::cout << "EAT(" << tp.tdep << ") = " << tp.tarr << std::endl;
-            if (tp.tarr == -1)
+            if (tp.tarr == -1 || tp.tarr >= ttbl->t_max)
                 break;
             tp.tdep = -earliest_arrival_time_rev(journey, -tp.tarr);
             // std::cout << "REAT(" << tp.tarr << ") = " << tp.tdep << std::endl;
-            if (tp.tdep == -1)
+            if (tp.tdep == -1 || tp.tdep >= ttbl->t_max)
                 break;
             timeprofiles.push_back(tp);
             ++tp.tdep;
