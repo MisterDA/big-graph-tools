@@ -61,7 +61,8 @@ private:
     struct stop_schedule {
         V index;
         enum {station, arr, dep} type;
-        const std::vector<T> *events; // only if type is arr or dep
+        timetable::R route; // only if type is arr or dep
+        const std::vector<T> *events, *events_rev; // only if type is arr or dep
     };
 
 public:
@@ -71,6 +72,7 @@ public:
                const timetable &_ttbl_rev, std::istream &hubs)
         : inhubs(), outhubs(), ttbl(&_ttbl), ttbl_rev(&_ttbl_rev), mg(&_mg)
     {
+        assert((void *)ttbl != (void *)ttbl_rev);
         hl_input(hubs);
     }
 
@@ -104,50 +106,17 @@ public:
     {
         // build the path with the hub labeling
         std::list<V> path = buildpath(src, dst);
-
-        // Retrieve the schedule at each node in the path, following the routes
-        const timetable *ttbl = this->ttbl;
-        auto retrieve_schedule = [this, &ttbl](const V &v) -> stop_schedule
-        {
-            // fetch the id from the static_min_graph index
-            const auto &vertex = mg->index_to_vertex(v);
-            const timetable::ST &station_idx =
-                ttbl->id_to_station.at(vertex.station_id);
-            if (vertex.is_stop) {
-                for (const auto &stop : ttbl->station_stops.at(station_idx)) {
-                    if (ttbl->stop_route.at(stop).first == vertex.route) {
-                        switch (vertex.type) {
-                        case decltype(vertex.type)::arr:
-                            return {v, stop_schedule::arr,
-                                    &ttbl->stop_arrivals.at(stop)};
-                        case decltype(vertex.type)::dep:
-                            return {v, stop_schedule::dep,
-                                    &ttbl->stop_departures.at(stop)};
-                        }
-                    }
-                }
-                std::cerr << "Could not find " << v << " in timetable."
-                          << std::endl;
-                assert(false);
-            } else {
-                return {v, stop_schedule::station, nullptr};
-            }
-        };
-
-        // retrieve the time schedule
-        std::vector<stop_schedule> forward, backward;
-        std::transform(path.begin(), path.end(), std::back_inserter(forward),
-                       retrieve_schedule);
-        ttbl = this->ttbl_rev;
-        std::transform(path.begin(), path.end(), std::back_inserter(backward),
-                       retrieve_schedule);
+        std::vector<stop_schedule> journey;
+        transfers_schedule_from_path(path, journey);
 
         tp tp = {.tdep = deptime, .tarr = 0};
         while (true) {
-            tp.tarr = earliest_arrival_time(forward, tp.tdep);
+            tp.tarr = earliest_arrival_time(journey, tp.tdep);
+            // std::cout << "EAT(" << tp.tdep << ") = " << tp.tarr << std::endl;
             if (tp.tarr == -1)
                 break;
-            tp.tdep = -earliest_arrival_time_rev(backward, -tp.tarr);
+            tp.tdep = -earliest_arrival_time_rev(journey, -tp.tarr);
+            // std::cout << "REAT(" << tp.tarr << ") = " << tp.tdep << std::endl;
             if (tp.tdep == -1)
                 break;
             timeprofiles.push_back(tp);
@@ -212,6 +181,57 @@ private:
         return path;
     }
 
+    void
+    transfers_schedule_from_path(const std::list<V> &path,
+                                 std::vector<stop_schedule> &journey) const
+    {
+        auto retrieve_schedule = [this](const V &v)
+            -> stop_schedule
+        {
+            // fetch the id from the static_min_graph index
+            const auto &vertex = mg->index_to_vertex(v);
+            const timetable::ST &station_idx =
+                ttbl->id_to_station.at(vertex.station_id);
+            if (vertex.is_stop) {
+                for (const auto &stop : ttbl->station_stops.at(station_idx)) {
+                    if (ttbl->stop_route.at(stop).first == vertex.route) {
+                        switch (vertex.type) {
+                        case decltype(vertex.type)::arr:
+                            return {v, stop_schedule::arr, vertex.route,
+                                    &ttbl->stop_arrivals.at(stop),
+                                    &ttbl_rev->stop_arrivals.at(stop)};
+                        case decltype(vertex.type)::dep:
+                            return {v, stop_schedule::dep, vertex.route,
+                                    &ttbl->stop_departures.at(stop),
+                                    &ttbl_rev->stop_arrivals.at(stop)};
+                        }
+                    }
+                }
+                std::cerr << "Could not find " << v << " in timetable."
+                          << std::endl;
+                assert(false);
+            } else {
+                return {v, stop_schedule::station, -1, nullptr, nullptr};
+            }
+        };
+        auto it = path.begin();
+        assert(it != path.end());
+        auto curr = retrieve_schedule(*it);
+        journey.push_back(curr);
+        while (std::next(it) != path.end()) {
+            auto next = retrieve_schedule(*std::next(it));
+            // if one is a station, it counts as a transfer
+            if (curr.type == stop_schedule::station
+                || next.type == stop_schedule::station) {
+                if (journey.back().index != curr.index)
+                    journey.push_back(curr);
+                journey.push_back(next);
+            }
+            curr = next;
+            ++it;
+        }
+    }
+
     timetable::T
     earliest_arrival_time(const std::vector<stop_schedule> &journey,
                           const timetable::T deptime) const
@@ -222,7 +242,6 @@ private:
             if (u.type == stop_schedule::dep &&
                 v.type == stop_schedule::arr) {
                 // find the first departure time from u after arrtime
-                assert(u.events->size() == v.events->size());
                 bool found(false);
                 for (size_t j = 0; j < u.events->size(); ++j) {
                     if (arrtime <= (*u.events)[j]) {
@@ -265,11 +284,10 @@ private:
             if (u.type == stop_schedule::dep &&
                 v.type == stop_schedule::arr) {
                 // find the first departure time from u after arrtime
-                assert(u.events->size() == v.events->size());
                 bool found(false);
-                for (size_t j = 0; j < v.events->size(); ++j) {
-                    if (deptime == (*v.events)[j]) {
-                        deptime = (*u.events)[j];
+                for (size_t j = 0; j < v.events_rev->size(); ++j) {
+                    if (deptime <= (*v.events_rev)[j]) {
+                        deptime = (*u.events_rev)[j];
                         found = true;
                         break;
                     }
@@ -278,10 +296,10 @@ private:
             } else if (u.type == stop_schedule::arr &&
                        v.type == stop_schedule::dep) {
                 bool found(false);
-                for (size_t j = 0; j < v.events->size(); ++j) {
-                    timetable::T t = (*v.events)[j];
-                    if (deptime == t) {
-                        deptime = (*u.events)[j];;
+                for (size_t j = 0; j < v.events_rev->size(); ++j) {
+                    timetable::T t = (*v.events_rev)[j];
+                    if (deptime <= t) {
+                        deptime = (*u.events_rev)[j];;
                         found = true;
                         break;
                     }
@@ -291,7 +309,7 @@ private:
                 try {
                     deptime += mg->edge_weight(u.index, v.index);
                 } catch (const std::invalid_argument &e) {
-                    return 1;
+                    return -1;
                 }
             }
         }
