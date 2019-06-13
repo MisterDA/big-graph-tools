@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <list>
 #include <type_traits>
 #include <chrono>
@@ -69,7 +70,7 @@ public:
     struct tp { T tdep, tarr; };
 
     comparison(const static_min_graph<V, W> &_mg, const timetable &_ttbl,
-               const timetable &_ttbl_rev, std::istream &hubs)
+               const timetable &_ttbl_rev, const std::string &hubs)
         : inhubs(), outhubs(), ttbl(&_ttbl), ttbl_rev(&_ttbl_rev), mg(&_mg)
     {
         assert((void *)ttbl != (void *)ttbl_rev);
@@ -208,7 +209,7 @@ private:
                     }
                 }
                 std::cerr << "Could not find " << v << " in timetable."
-                          << std::endl;
+                          << std::endl << vertex << std::endl << station_idx << std::endl;
                 assert(false);
             } else {
                 return {v, stop_schedule::station, -1, nullptr, nullptr};
@@ -240,6 +241,8 @@ private:
         size_t j = 0;
         for (size_t i = 0; i < journey.size() - 1; ++i) {
             const auto &u = journey[i], &v = journey[i+1];
+            assert(!(u.type == stop_schedule::arr &&
+                     v.type == stop_schedule::dep));
             if (u.type == stop_schedule::dep &&
                 v.type == stop_schedule::arr) {
                 auto it = std::lower_bound(u.events->begin() + j,
@@ -274,6 +277,8 @@ private:
         size_t j = 0;
         for (size_t i = journey.size() - 1; i > 0; --i) {
             auto &u = journey[i-1], &v = journey[i];
+            assert(!(u.type == stop_schedule::arr &&
+                   v.type == stop_schedule::dep));
             if (u.type == stop_schedule::dep &&
                 v.type == stop_schedule::arr) {
                 // find the first departure time from u after arrtime
@@ -303,14 +308,17 @@ private:
     }
 
     void
-    hl_input(std::istream &s)
+    hl_input(const std::string &hubs)
     {
         char t;
         std::string vertex_id, next_hop_id, hub_id;
         V vertex, next_hop, hub;
         int length;
 
-        while (!s.eof()) {
+        file_or_gz f(hubs);
+        std::string line;
+        while ((line = f.get_line()) != "") {
+            std::stringstream s(line);
             s >> t;
             if (t == 'i') {
                 s >> hub_id >> next_hop_id >> vertex_id >> length;
@@ -332,6 +340,7 @@ private:
                 s.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
             }
         }
+        f.close();
     }
 };
 
@@ -386,24 +395,11 @@ main(int argc, const char *argv[])
         ttbl_rev.reverse_time();
         log("loaded timetables.");
 
-        std::ifstream gr(argv[4]);
-        if (gr.bad()) {
-            perror(argv[4]);
-            exit(EXIT_FAILURE);
-        }
-        static_min_graph<int, int> mg(gr);
-        gr.close();
+        static_min_graph<int, int> mg(argv[4]);
         log("loaded static_min_graph.");
 
-        std::ifstream hl(argv[5]);
-        if (hl.bad()) {
-            perror(argv[5]);
-            exit(EXIT_FAILURE);
-        }
-        log("loaded hub labeling");
-        comparison cmp(mg, ttbl, ttbl_rev, hl);
-        hl.close();
-        log("loaded comparison.");
+        comparison cmp(mg, ttbl, ttbl_rev, argv[5]);
+        log("loaded hub-labeling and comparison.");
 
         auto queries(read_csv(argv[6], 6, "source","destination",
                               "departure_time","log2_of_station_rank",

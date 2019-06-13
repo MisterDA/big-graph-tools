@@ -114,7 +114,7 @@ public:
         for (size_t r = 0; r < ttbl.trips_of.size(); ++r) {    // for each route
             const auto &route = ttbl.trips_of[r];
             for (const auto &trip : route) {                   // for each trip
-                assert(trip.size() >= 2);
+                // assert(trip.size() >= 2);
                 stop s1 = find_or_add(r, 0);
                 add_min_edge(s1.arr, s1.dep, trip[0].second - trip[0].first);
                 for (size_t s = 1; s < trip.size(); ++s) {     // for each arc
@@ -148,7 +148,7 @@ public:
         graph = mg.reverse().reverse();
     }
 
-    explicit static_min_graph(std::istream &f)
+    explicit static_min_graph(const std::string &path)
         : station_stops(), id_to_station(), index_to_id()
     {
         V max_index(0);        // == index_to_id.size();
@@ -164,14 +164,19 @@ public:
         };
 
         std::vector<unit::graph::edge> edges;
-        while (!f.eof()) {
+
+        file_or_gz f(path);
+        std::string line;
+        while ((line = f.get_line()) != "") {
+            std::stringstream s(line);
             std::string ssrc, sdst;
             W wgt;
-            f >> ssrc >> sdst >> wgt;
+            s >> ssrc >> sdst >> wgt;
             if (ssrc == "" || sdst == "") break; // FIXME
             V src = find_or_add(ssrc), dst = find_or_add(sdst);
             edges.push_back(unit::graph::edge(src, dst, wgt));
         }
+        f.close();
 
         assert(max_index == index_to_id.size());
         auto mg = mgraph<V, W>(max_index, edges);
