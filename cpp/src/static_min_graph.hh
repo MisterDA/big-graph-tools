@@ -46,6 +46,19 @@ public:
             : is_stop(true), type(tp), route(r), station_id(stid) {}
     };
 
+    friend std::ostream &
+    operator <<(std::ostream &out, const struct vertex &v)
+    {
+        if (v.is_stop)
+            out << "stop "
+                << (v.type == decltype(v.type)::arr ? "arr" : "dep")
+                << " r: " << v.route;
+        else
+            out << "station";
+        out << " station_id: " << v.station_id;
+        return out;
+    };
+
     struct stop { V arr, dep; };
 
     // maps a SMG station vertex to its stops
