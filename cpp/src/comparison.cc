@@ -1,4 +1,4 @@
-#include <cstring>
+#include <string.h>
 #include <algorithm>
 #include <iostream>
 #include <fstream>
@@ -57,6 +57,7 @@ private:
     hl inhubs, outhubs;
 
     const timetable *ttbl, *ttbl_rev;
+    const timetable::T t_max;
     const static_min_graph<V, W> *mg;
 
     struct stop_schedule {
@@ -71,10 +72,13 @@ public:
 
     comparison(const static_min_graph<V, W> &_mg, const timetable &_ttbl,
                const timetable &_ttbl_rev, const std::string &hubs)
-        : inhubs(), outhubs(), ttbl(&_ttbl), ttbl_rev(&_ttbl_rev), mg(&_mg)
+        : inhubs(), outhubs(), ttbl(&_ttbl), ttbl_rev(&_ttbl_rev),
+          t_max(std::min(ttbl->t_max, ttbl->max_time())),
+          mg(&_mg)
     {
         assert((void *)ttbl != (void *)ttbl_rev);
         hl_input(hubs);
+        log("Maximum time: " + std::to_string(t_max));
     }
 
     template <typename f>
@@ -84,25 +88,22 @@ public:
                  const size_t limit,
                  std::ostream &out) const
     {
-        std::vector<tp> values;
-        values.reserve(128);
         out << "query,departure,arrival" << std::endl;
         for (size_t q = 0; q < limit; ++q) {
-            values.clear();
             const auto &query = queries[q];
             V src = mg->id_to_station.at(query[0]),
                 dst = mg->id_to_station.at(query[1]);
             int deptime = std::stoi(query[2]);
-            lambda(q, timeprofile(src, dst, values, deptime), out);
+            timeprofile(src, dst, lambda(out, q), deptime);
             log("query " + std::to_string(q) + " done.");
         }
     }
 
     // Find the timeprofile of the journey from src at a given
     // departure time to dst.
-    const std::vector<tp> &
-    timeprofile(const V &src, const V &dst,
-                std::vector<tp> &timeprofiles,
+    template <typename g>
+    void
+    timeprofile(const V &src, const V &dst, const g &lambda,
                 const int deptime = 0) const
     {
         // build the path with the hub labeling
@@ -110,21 +111,26 @@ public:
         std::vector<stop_schedule> journey;
         transfers_schedule_from_path(path, journey);
 
+        for (const auto &s : journey) {
+            std::cerr << s.index << ":" << mg->index_to_id[s.index] << " ";
+        }
+        std::cerr << std::endl;
+
         tp tp = {.tdep = deptime, .tarr = 0};
         while (true) {
             tp.tarr = earliest_arrival_time(journey, tp.tdep);
-            // std::cout << "EAT(" << tp.tdep << ") = " << tp.tarr << std::endl;
-            if (tp.tarr == -1 || tp.tarr >= ttbl->t_max)
+            // std::cout << "EAT(" << tp.tdep << ") = " << tp.tarr
+            //           << '\t' << std::flush;
+            if (tp.tarr == -1 || tp.tarr >= t_max)
                 break;
             tp.tdep = -earliest_arrival_time_rev(journey, -tp.tarr);
-            // std::cout << "REAT(" << tp.tarr << ") = " << tp.tdep << std::endl;
-            if (tp.tdep == -1 || tp.tdep >= ttbl->t_max)
+            // std::cout << "REAT(" << tp.tarr << ") = " << tp.tdep
+            //           << '\t' << std::flush;
+            if (tp.tdep == -1 || tp.tdep >= t_max)
                 break;
-            timeprofiles.push_back(tp);
+            lambda(tp);
             ++tp.tdep;
         }
-
-        return timeprofiles;
     }
 
 private:
@@ -345,11 +351,12 @@ private:
 };
 
 namespace {
-    void
-    f(const size_t query, const std::vector<comparison::tp> &tps,
-      std::ostream &out) {
-        for (const auto &tp : tps)
+    auto
+    f(std::ostream &out, const size_t query)
+    {
+        return [&out, query](const comparison::tp &tp) {
             out << query << "," << tp.tdep << "," << tp.tarr << std::endl;
+        };
     }
 
 };

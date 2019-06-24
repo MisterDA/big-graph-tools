@@ -7,8 +7,6 @@
 #include <sstream>
 #include <vector>
 
-#include "timetable.hh"
-
 /* A static minimum graph (SMG) is a graph composed of vertices V and
  * arcs V×V labeled by W. To each vertex in the SMG corresponds an
  * unique stop or station in the timetable (TTBL).
@@ -23,15 +21,13 @@
  * same id, that I call SMG *station*.
  */
 
+#include "timetable.hh"
+
 template<typename V, // vertex-number (index) type
          typename W> // weight type
 
 class static_min_graph {
 public:
-    using T = timetable::T;
-    using R = timetable::R;
-    using id = timetable::id;
-
     // used when loading the graph from a file
     struct vertex {
         bool is_stop;
@@ -61,6 +57,10 @@ public:
 
     struct stop { V arr, dep; };
 
+    using T = timetable::T;
+    using R = timetable::R;
+    using id = timetable::id;
+
     // maps a SMG station vertex to its stops
     std::map<V, std::map<R, stop>> station_stops;
     std::map<id, V> id_to_station;
@@ -71,9 +71,9 @@ private:
 
     mgraph<V, W> graph;
 
-    template <typename VV, typename WW>
+    template<typename V_, typename W_>
     friend std::ostream& operator<<(std::ostream &out,
-                                    const static_min_graph<VV, WW> &gr);
+                                    const static_min_graph<V_, W_> &gr);
 
 public:
     explicit static_min_graph(const timetable &ttbl,

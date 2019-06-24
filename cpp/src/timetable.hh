@@ -76,7 +76,7 @@ public:
         build_auxiliary_graphs();
     }
 
-    timetable(std::string stop_times,
+    timetable(const std::string &stop_times,
               std::string transfersfile, bool symmetrize = false)
         : n_st(0), n_tr(0), n_s(0), n_r(0), n_h(0)
     {
@@ -279,6 +279,17 @@ public:
         outhubs.sort_neighbors_by_weight();
         check();
         build_auxiliary_graphs();
+    }
+
+    T max_time() const {
+        T event(0), transfer(0);
+        for (const auto &stop : stop_arrivals)
+            event = std::max(event, stop.back());
+        // FIXME: can be made more efficient
+        for (const auto &u : transfers)
+            for (const auto &e : transfers[u])
+                transfer = std::max(transfer, e.wgt);
+        return event + transfer * 2;
     }
 
 private:
@@ -741,7 +752,7 @@ public:
     }
 
     static std::unordered_map<id, std::vector<std::tuple<T, T, id, int> > >
-    trips_sequences_oneday(std::string stop_times) {
+    trips_sequences_oneday(const std::string &stop_times) {
         std::unordered_map<id, std::vector<std::tuple<T, T, id, int> > >
             trip_seq;
         for (auto r : read_csv(stop_times, 5,
