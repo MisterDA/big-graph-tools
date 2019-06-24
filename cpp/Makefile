@@ -9,10 +9,11 @@ HDRS:=$(wildcard src/*.hh)
 CTRS:=$(wildcard src/*.cc)
 LDLIBS:=-lz
 LDFLAGS:=-rdynamic -lpthread
+CXX=clang++
 CFLAGS_RELEASE:=-O3 -s -flto
-CFLAGS_DEBUG:=-g -Og -Wall -Wextra \
-              -Wno-sign-compare -Wno-unused-parameter -Wno-unused-function
-CFLAGS:=-std=c++11 -pipe -march=native $(CFLAGS_RELEASE)
+CFLAGS_DEBUG:=-g -Og -Wall -Wextra -fsanitize=memory -fno-omit-frame-pointer -fsanitize-memory-track-origins=2 \
+              -Wno-sign-compare -Wno-unused-parameter -Wno-unused-function -stdlib=libc++
+CFLAGS:=-std=c++14 -pipe -march=native $(CFLAGS_DEBUG)
 
 main: raptor.o
 
