@@ -57,10 +57,10 @@ public:
     std::map<id, ST> id_to_station, id_to_hub;
 
 public:
-    timetable(std::string day, std::string date,
-              std::string calendar, std::string calendar_dates,
-              std::string tripsfile, std::string stop_times,
-              std::string transfersfile, bool symmetrize = false)
+    timetable(const std::string &day, const std::string &date,
+              const std::string &calendar, const std::string &calendar_dates,
+              const std::string &tripsfile, const std::string &stop_times,
+              const std::string &transfersfile, bool symmetrize = false)
         : n_st(0), n_tr(0), n_s(0), n_r(0), n_h(0)
     {
         auto services = services_at(day, date, calendar, calendar_dates);
@@ -77,7 +77,7 @@ public:
     }
 
     timetable(const std::string &stop_times,
-              std::string transfersfile, bool symmetrize = false)
+              const std::string &transfersfile, bool symmetrize = false)
         : n_st(0), n_tr(0), n_s(0), n_r(0), n_h(0)
     {
         auto trip_seq = trips_sequences_oneday(stop_times);
@@ -89,10 +89,10 @@ public:
         build_auxiliary_graphs();
     }
 
-    timetable(std::string stop_times,
-              std::string inhubsfile, std::string outhubsfile, bool hubs_nh,
-              std::string transfersfile, bool symmetrize = false,
-              std::string walkingfile="", T t_from=0, T t_to=0)
+    timetable(const std::string &stop_times,
+              const std::string &inhubsfile, const std::string &outhubsfile, bool hubs_nh,
+              const std::string &transfersfile, bool symmetrize = false,
+              const std::string &walkingfile="", T t_from=0, T t_to=0)
         : n_st(0), n_tr(0), n_s(0), n_r(0), n_h(0)
     {
         auto trip_seq = trips_sequences_oneday(stop_times);
@@ -670,9 +670,10 @@ public:
     }
 
 
-    static std::set<id> services_at(std::string day, std::string date,
-                                    std::string calendar,
-                                    std::string calendar_dates) {
+    static std::set<id> services_at(const std::string &day,
+                                    const std::string &date,
+                                    const std::string &calendar,
+                                    const std::string &calendar_dates) {
         std::set<id> services;
         // read calendar.txt file
         for (auto r : read_csv(calendar, 4,
@@ -697,7 +698,7 @@ public:
     }
 
     static std::set<id> trips_served(const std::set<id> &services,
-                                     std::string tripsfile) {
+                                     const std::string &tripsfile) {
         std::set<id> trips;
         // read trips.txt file
         for (auto r : read_csv(tripsfile, 2, "service_id", "trip_id")) {
@@ -707,7 +708,7 @@ public:
     }
 
     static std::vector<std::tuple<id, id, T> >
-    station_transfers(std::string transfersfile) {
+    station_transfers(const std::string &transfersfile) {
         std::vector<std::tuple<id, id, T> > transf;
         for (auto r : read_csv(transfersfile, 4,
                                "from_stop_id", "to_stop_id", "transfer_type",
@@ -720,7 +721,7 @@ public:
     }
 
     static std::vector<std::tuple<id, id, T> >
-    station_transfers_2(std::string transfersfile) {
+    station_transfers_2(const std::string &transfersfile) {
         std::vector<std::tuple<id, id, T> > transf;
         for (auto r : read_csv(transfersfile, 3,
                                "from_stop_id", "to_stop_id",
@@ -732,7 +733,7 @@ public:
     }
 
     static std::unordered_map<id, std::vector<std::tuple<T, T, id, int> > >
-    trips_sequences(std::string stop_times,
+    trips_sequences(const std::string &stop_times,
                     const std::set<id> &trips = std::set<id>()) {
         std::unordered_map<id, std::vector<std::tuple<T, T, id, int> > >
             trip_seq;
